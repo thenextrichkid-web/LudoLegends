@@ -50,5 +50,8 @@ async def health_check():
 
 
 WEB_DIR = Path("/app/web")
+ADMIN_DIR = Path("/app/admin")
+if ADMIN_DIR.exists():
+    app.mount("/admin", StaticFiles(directory=str(ADMIN_DIR), html=True), name="admin")
 if WEB_DIR.exists():
     app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")
