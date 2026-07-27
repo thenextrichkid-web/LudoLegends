@@ -14,6 +14,7 @@ class TournamentListScreen extends StatefulWidget {
 class _TournamentListScreenState extends State<TournamentListScreen> {
   List<Tournament> _tournaments = [];
   bool _isLoading = true;
+  bool _hasError = false;
   String _selectedFilter = 'all';
 
   @override
@@ -23,14 +24,14 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
   }
 
   Future<void> _loadTournaments() async {
-    setState(() => _isLoading = true);
+    setState(() { _isLoading = true; _hasError = false; });
     try {
       final status = _selectedFilter == 'all' ? null : _selectedFilter;
       _tournaments = await TournamentService().getTournaments(status: status);
     } catch (e) {
-      // Silent fail
+      if (mounted) setState(() => _hasError = true);
     }
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
@@ -39,7 +40,6 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
       appBar: AppBar(title: const Text('Tournaments')),
       body: Column(
         children: [
-          // Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -63,21 +63,44 @@ class _TournamentListScreenState extends State<TournamentListScreen> {
               }).toList(),
             ),
           ),
-
-          // Tournament List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _tournaments.isEmpty
-                    ? const Center(child: Text('No tournaments found', style: TextStyle(color: AppColors.textMuted)))
-                    : RefreshIndicator(
-                        onRefresh: _loadTournaments,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _tournaments.length,
-                          itemBuilder: (context, index) => _tournamentCard(_tournaments[index]),
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : _hasError
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.wifi_off, size: 48, color: AppColors.textMuted),
+                            const SizedBox(height: 16),
+                            const Text('Failed to load tournaments', style: TextStyle(color: AppColors.textSecondary)),
+                            const SizedBox(height: 16),
+                            ElevatedButton(onPressed: _loadTournaments, child: const Text('Retry')),
+                          ],
                         ),
-                      ),
+                      )
+                    : _tournaments.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.emoji_events_outlined, size: 64, color: AppColors.textMuted.withOpacity(0.4)),
+                                const SizedBox(height: 16),
+                                const Text('No tournaments found', style: TextStyle(color: AppColors.textSecondary)),
+                                const SizedBox(height: 8),
+                                const Text('Check back later for new tournaments!', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _loadTournaments,
+                            color: AppColors.primary,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _tournaments.length,
+                              itemBuilder: (context, index) => _tournamentCard(_tournaments[index]),
+                            ),
+                          ),
           ),
         ],
       ),

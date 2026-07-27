@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:ludo_legends/core/theme/app_theme.dart';
 
 class PracticeModeScreen extends StatelessWidget {
@@ -9,142 +8,72 @@ class PracticeModeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Practice Mode')),
-      body: SingleChildScrollView(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Practice Badge Banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Colors.cyan, Color(0xFF0097A7)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.fitness_center, color: Colors.white, size: 28),
+                  Icon(Icons.fitness_center, size: 64, color: AppColors.primary.withOpacity(0.6)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Practice Mode',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Practice Mode',
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        SizedBox(height: 2),
-                        Text('Free \u2022 Unlimited \u2022 No Stakes',
-                            style: TextStyle(color: Colors.white70, fontSize: 12)),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Text('FREE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    child: const Text('FREE', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Practice your Ludo skills without risking any money. Perfect for learning strategies and improving your game.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Practice matches coming soon! We\'re building an AI opponent for you to practice against.'),
+                            backgroundColor: AppColors.primary,
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Start Practice Match'),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Info Cards
-            _infoCard(
-              icon: Icons.lock_open,
-              title: 'No Wallet Deduction',
-              desc: 'Play without spending a rupee.',
-              color: AppColors.secondary,
-            ),
-            const SizedBox(height: 12),
-            _infoCard(
-              icon: Icons.money_off,
-              title: 'No Winnings',
-              desc: 'Practice is for learning, not earning.',
-              color: AppColors.gold,
-            ),
-            const SizedBox(height: 12),
-            _infoCard(
-              icon: Icons.leaderboard,
-              title: 'No Leaderboard Impact',
-              desc: 'Your rank and referrals stay untouched.',
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 12),
-            _infoCard(
-              icon: Icons.workspace_premium,
-              title: 'Practice Badge',
-              desc: 'A badge shows during gameplay so everyone knows it\'s practice.',
-              color: Colors.cyan,
-            ),
-            const SizedBox(height: 32),
-
-            // Play Button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.play_arrow, size: 28),
-                label: const Text('Start Practice Match', style: TextStyle(fontSize: 18)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.cyan,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Back to Academy
-            Center(
-              child: TextButton(
-                onPressed: () => context.go('/academy'),
-                child: const Text('Back to Ludo Academy', style: TextStyle(color: AppColors.textMuted)),
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          _featureCard(Icons.psychology, 'Learn Strategies', 'Practice different Ludo strategies without risk'),
+          _featureCard(Icons.speed, 'Improve Speed', 'Get faster at making decisions during tournaments'),
+          _featureCard(Icons.analytics, 'Track Progress', 'See how you improve over time'),
+        ],
       ),
     );
   }
 
-  Widget _infoCard({required IconData icon, required String title, required String desc, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 2),
-                Text(desc, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-              ],
-            ),
-          ),
-        ],
+  static Widget _featureCard(IconData icon, String title, String desc) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.primary),
+        title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
+        subtitle: Text(desc, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
       ),
     );
   }

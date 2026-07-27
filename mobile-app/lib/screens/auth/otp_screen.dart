@@ -17,7 +17,7 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _isLoading = false;
 
   Future<void> _sendOtp() async {
-    if (_phoneController.text.isEmpty) return;
+    if (_phoneController.text.isEmpty || _isLoading) return;
 
     setState(() => _isLoading = true);
     try {
@@ -28,12 +28,15 @@ class _OtpScreenState extends State<OtpScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().contains('Connection')
+            ? 'No internet connection. Please check and try again.'
+            : 'Failed to send OTP. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send OTP: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -56,7 +59,7 @@ class _OtpScreenState extends State<OtpScreen> {
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
                 style: const TextStyle(color: AppColors.textPrimary, fontSize: 18),
                 decoration: const InputDecoration(
                   hintText: 'Phone Number',

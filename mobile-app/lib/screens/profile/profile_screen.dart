@@ -12,129 +12,151 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  User? _user;
+  final _authService = AuthService();
   bool _isLoading = true;
+  User? _user;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _load();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _load() async {
     try {
-      _user = await AuthService().getCurrentUser();
+      final user = await _authService.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _user = user;
+        _isLoading = false;
+      });
     } catch (e) {
-      // Silent fail
+      if (!mounted) return;
+      setState(() { _isLoading = false; });
     }
-    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    final name = _user?.name ?? 'Player';
+    final phone = _user?.phone ?? '';
+    final wins = _user?.totalWins.toInt() ?? 0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Avatar
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: AppColors.primary.withOpacity(0.2),
-              child: _user?.avatarUrl != null
-                  ? ClipOval(child: Image.network(_user!.avatarUrl!, width: 100, height: 100, fit: BoxFit.cover))
-                  : const Icon(Icons.person, size: 50, color: AppColors.primary),
-            ),
-            const SizedBox(height: 16),
-            Text(_user?.name ?? 'Player', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            const SizedBox(height: 4),
-            Text(_user?.phone ?? '', style: const TextStyle(color: AppColors.textSecondary)),
-            const SizedBox(height: 24),
-
-            // Stats
-            Row(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                _statItem('Earnings', '₹${(_user?.totalEarnings ?? 0).toInt()}', AppColors.gold),
-                _statItem('Matches', '${(_user?.totalMatches ?? 0).toInt()}', AppColors.primary),
-                _statItem('Wins', '${(_user?.totalWins ?? 0).toInt()}', AppColors.success),
-                _statItem('VIP', '${(_user?.vipLevel ?? 0).toInt()}', AppColors.secondary),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        const CircleAvatar(
+                          radius: 36,
+                          backgroundColor: AppColors.primary,
+                          child: Icon(Icons.person, size: 40, color: Colors.white),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                        const SizedBox(height: 4),
+                        Text(phone, style: const TextStyle(color: AppColors.textSecondary)),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _pill('$wins Wins', Icons.emoji_events),
+                            const SizedBox(width: 12),
+                            _pill('Referral', Icons.card_giftcard),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _menuItem(Icons.history, 'Match History', () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Match history coming soon!'), backgroundColor: AppColors.primary),
+                  );
+                }),
+                _menuItem(Icons.help_outline, 'Help & Support', () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Help & support coming soon!'), backgroundColor: AppColors.primary),
+                  );
+                }),
+                _menuItem(Icons.info_outline, 'About', () {
+                  showAboutDialog(
+                    context: context,
+                    applicationName: 'Ludo Legends',
+                    applicationVersion: '1.0.0',
+                    applicationIcon: const Icon(Icons.games, color: AppColors.primary, size: 32),
+                    children: const [
+                      Text('Ludo Legends is a competitive Ludo platform where you can join tournaments and win real prizes!'),
+                    ],
+                  );
+                }),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: AppColors.surface,
+                        title: const Text('Logout', style: TextStyle(color: AppColors.textPrimary)),
+                        content: const Text('Are you sure you want to logout?', style: TextStyle(color: AppColors.textSecondary)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Logout', style: TextStyle(color: AppColors.error)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true && mounted) {
+                      await _authService.logout();
+                      if (mounted) context.go('/otp');
+                    }
+                  },
+                  icon: const Icon(Icons.logout, color: AppColors.error),
+                  label: const Text('Logout', style: TextStyle(color: AppColors.error)),
+                  style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error)),
+                ),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // Referral Code
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Referral Code', style: TextStyle(color: AppColors.textSecondary)),
-                  Text(_user?.referralCode ?? '', style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 18)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Menu
-            _menuItem(Icons.leaderboard, 'Leaderboard', () => context.push('/leaderboard')),
-            _menuItem(Icons.card_giftcard, 'Referrals', () => context.push('/referrals')),
-            _menuItem(Icons.history, 'Match History', () {}),
-            _menuItem(Icons.help, 'Help & Support', () {}),
-            _menuItem(Icons.info, 'About', () {}),
-            const SizedBox(height: 16),
-
-            // Logout
-            TextButton(
-              onPressed: () async {
-                await AuthService().logout();
-                if (mounted) context.go('/otp');
-              },
-              child: const Text('Logout', style: TextStyle(color: AppColors.error)),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _statItem(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Column(
-          children: [
-            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-          ],
-        ),
+  Widget _pill(String text, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: 4),
+          Text(text, style: const TextStyle(color: AppColors.primary, fontSize: 12)),
+        ],
       ),
     );
   }
 
   Widget _menuItem(IconData icon, String label, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.textSecondary),
-      title: Text(label, style: const TextStyle(color: AppColors.textPrimary)),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted),
-      onTap: onTap,
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.textMuted),
+        title: Text(label, style: const TextStyle(color: AppColors.textPrimary)),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted),
+        onTap: onTap,
+      ),
     );
   }
 }

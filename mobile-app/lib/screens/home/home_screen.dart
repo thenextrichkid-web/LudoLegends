@@ -1,389 +1,284 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ludo_legends/core/theme/app_theme.dart';
+import 'package:ludo_legends/services/auth_service.dart';
 import 'package:ludo_legends/services/wallet_service.dart';
 import 'package:ludo_legends/services/tournament_service.dart';
-import 'package:ludo_legends/services/auth_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:ludo_legends/models/user.dart';
+import 'package:ludo_legends/models/wallet.dart';
+import 'package:ludo_legends/models/tournament.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  double _balance = 0;
-  int _activeTournaments = 0;
-  bool _showWelcome = false;
+class _HomeScreenState extends State<HomeScreen> {
+  final _authService = AuthService();
+  final _walletService = WalletService();
+  final _tournamentService = TournamentService();
+  bool _expanded = false;
+
   String _userName = 'Player';
-  double _totalEarnings = 0;
-  double _totalMatches = 0;
-  double _totalWins = 0;
-  int _notificationCount = 0;
+  double _balance = 0;
+  int _wins = 0;
+  List<Tournament> _tournaments = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _load();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _load() async {
+    setState(() { _isLoading = true; _error = null; });
     try {
-      final wallet = await WalletService().getBalance();
-      final tournaments = await TournamentService().getTournaments(status: 'upcoming');
-      final user = await AuthService().getCurrentUser();
-      final storage = const FlutterSecureStorage();
-      final hasSeenWelcome = await storage.read(key: 'has_seen_welcome');
-
-      if (mounted) {
-        setState(() {
-          _balance = wallet.balance;
-          _activeTournaments = tournaments.length;
-          if (user != null) {
-            _userName = user.name ?? 'Player';
-            _totalEarnings = user.totalEarnings;
-            _totalMatches = user.totalMatches;
-            _totalWins = user.totalWins;
-          }
-          if (hasSeenWelcome == null) {
-            _showWelcome = true;
-          }
-        });
-      }
+      final user = await _authService.getCurrentUser();
+      final wallet = await _walletService.getBalance();
+      final tournaments = await _tournamentService.getTournaments(status: 'upcoming', perPage: 3);
+      if (!mounted) return;
+      setState(() {
+        _userName = user?.name ?? 'Player';
+        _balance = wallet.balance;
+        _wins = user?.totalWins.toInt() ?? 0;
+        _tournaments = tournaments;
+        _isLoading = false;
+      });
     } catch (e) {
-      // Silent fail
+      if (!mounted) return;
+      final msg = e.toString().contains('Connection')
+          ? 'No internet connection. Pull down to retry.'
+          : 'Failed to load data. Pull down to retry.';
+      setState(() { _error = msg; _isLoading = false; });
     }
-  }
-
-  Future<void> _dismissWelcome() async {
-    final storage = const FlutterSecureStorage();
-    await storage.write(key: 'has_seen_welcome', value: 'true');
-    setState(() => _showWelcome = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final winRate = _totalMatches > 0 ? ((_totalWins / _totalMatches) * 100).toStringAsFixed(0) : '0';
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('LUDO LEGENDS'),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {},
-              ),
-              if (_notificationCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '$_notificationCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Card (first login only)
-              if (_showWelcome) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.secondary, Color(0xFF00A884)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+        onRefresh: _load,
+        color: AppColors.primary,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.wifi_off, size: 48, color: AppColors.textMuted),
+                        const SizedBox(height: 16),
+                        Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(16),
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Welcome, $_userName!',
-                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            const Text('Your Ludo journey starts here.',
-                                style: TextStyle(color: Colors.white70, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70, size: 20),
-                        onPressed: _dismissWelcome,
-                      ),
+                      _buildWalletCard(),
+                      const SizedBox(height: 16),
+                      _buildTournamentSection(),
+                      const SizedBox(height: 16),
+                      _buildWelcomeCard(),
+                      const SizedBox(height: 16),
+                      _buildStats(),
+                      const SizedBox(height: 16),
+                      _buildQuickActions(),
                     ],
                   ),
-                ),
-                const SizedBox(height: 16),
-              ],
+      ),
+    );
+  }
 
-              // Balance Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, Color(0xFF5B1FD4)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
+  Widget _buildWalletCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Wallet Balance', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text('₹${_balance.toStringAsFixed(0)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                ],
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => context.push('/wallet'),
+              child: const Text('Top Up'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTournamentSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Upcoming Tournaments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        const SizedBox(height: 8),
+        if (_tournaments.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Center(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Wallet Balance',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-                    const SizedBox(height: 2),
-                    const Text('Built on Trust \u2022 Fair Play \u2022 Real Rewards.',
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                    const SizedBox(height: 8),
-                    Text('\u20B9${_balance.toStringAsFixed(0)}',
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 36, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        _actionButton(Icons.add, 'Deposit', () => context.go('/wallet')),
-                        const SizedBox(width: 12),
-                        _actionButton(Icons.arrow_upward, 'Withdraw', () => context.go('/wallet')),
-                      ],
+                    Icon(Icons.emoji_events_outlined, size: 48, color: AppColors.textMuted.withOpacity(0.5)),
+                    const SizedBox(height: 12),
+                    const Text('No upcoming tournaments', style: TextStyle(color: AppColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    TextButton(
+                      onPressed: () => context.push('/tournaments'),
+                      child: const Text('Browse All Tournaments'),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+            ),
+          )
+        else
+          ..._tournaments.map((t) => _buildTournamentCard(t)),
+      ],
+    );
+  }
 
-              // Quick Actions
-              const Text('Quick Actions',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _quickAction(Icons.emoji_events, 'Tournaments', Colors.purple, () => context.go('/tournaments')),
-                  const SizedBox(width: 10),
-                  _quickAction(Icons.leaderboard, 'Leaderboard', Colors.amber, () => context.go('/leaderboard')),
-                  const SizedBox(width: 10),
-                  _quickAction(Icons.card_giftcard, 'Referrals', Colors.green, () => context.go('/referrals')),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _quickAction(Icons.school, 'Academy', AppColors.secondary, () => context.go('/academy')),
-                  const SizedBox(width: 10),
-                  _quickAction(Icons.sports_mma, 'Quick Play', Colors.orange, () {}, comingSoon: true),
-                  const SizedBox(width: 10),
-                  _quickAction(Icons.fitness_center, 'Practice', Colors.cyan, () => context.go('/practice')),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Active Tournaments
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Active Tournaments',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                  TextButton(onPressed: () => context.go('/tournaments'), child: const Text('View All')),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 120,
-                child: _activeTournaments == 0
-                    ? Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.cardBorder),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.emoji_events_outlined, color: AppColors.textMuted, size: 32),
-                            const SizedBox(height: 8),
-                            const Text('No tournaments are live right now.',
-                                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                            const SizedBox(height: 2),
-                            const Text('New tournaments are added throughout the day.',
-                                style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                            const SizedBox(height: 10),
-                            TextButton(
-                              onPressed: () => context.go('/tournaments'),
-                              style: TextButton.styleFrom(
-                                backgroundColor: AppColors.primary.withOpacity(0.15),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: const Text('Browse Upcoming Matches',
-                                  style: TextStyle(color: AppColors.primary, fontSize: 12)),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _activeTournaments,
-                        itemBuilder: (context, index) => _tournamentCard(),
-                      ),
-              ),
-              const SizedBox(height: 24),
-
-              // Stats
-              const Text('Your Stats',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _statCard('Matches', _totalMatches.toInt().toString(), Icons.sports_esports),
-                  const SizedBox(width: 8),
-                  _statCard('Wins', _totalWins.toInt().toString(), Icons.emoji_events),
-                  const SizedBox(width: 8),
-                  _statCard('Win Rate', '$winRate%', Icons.trending_up),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _statCard('Earnings', '\u20B9${_totalEarnings.toInt()}', Icons.account_balance_wallet),
-                  const SizedBox(width: 8),
-                  _statCard('Rank', '#--', Icons.workspace_premium),
-                ],
-              ),
-            ],
-          ),
+  Widget _buildTournamentCard(Tournament t) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: const Icon(Icons.emoji_events, color: AppColors.primary),
+        title: Text(t.name, style: const TextStyle(color: AppColors.textPrimary)),
+        subtitle: Text(
+          'Entry ₹${t.entryFee.toInt()} · Prize ₹${t.prizePool.toInt()}',
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted),
+        onTap: () => context.push('/tournament/${t.id}'),
       ),
     );
   }
 
-  Widget _actionButton(IconData icon, String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
+  Widget _buildWelcomeCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: Colors.white, size: 16),
-            const SizedBox(width: 4),
-            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+            Row(
+              children: [
+                const CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Welcome, $_userName!',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _quickAction(IconData icon, String label, Color color, VoidCallback onTap, {bool comingSoon = false}) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.cardBorder),
+  Widget _buildStats() {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.leaderboard, color: AppColors.primary),
+            title: const Text('Your Stats', style: TextStyle(color: AppColors.textPrimary)),
+            subtitle: Text(
+              _expanded ? 'Tap to collapse' : 'Wins: $_wins · Tap to expand',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+            trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more, color: AppColors.textMuted),
+            onTap: () => setState(() => _expanded = !_expanded),
           ),
-          child: Column(
-            children: [
-              Stack(
-                alignment: Alignment.center,
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Icon(icon, color: color, size: 34),
-                  if (comingSoon)
-                    Positioned(
-                      bottom: -4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppColors.gold,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text('SOON', style: TextStyle(color: Colors.black, fontSize: 7, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
+                  _statItem('Wins', '$_wins', Icons.emoji_events),
+                  _statItem('Rank', '#--', Icons.leaderboard),
+                  _statItem('Matches', '0', Icons.sports_esports),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(label, style: TextStyle(color: comingSoon ? AppColors.textMuted : AppColors.textSecondary, fontSize: 12)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _tournamentCard() {
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('Tournament Name', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text('Entry: \u20B9100', style: TextStyle(color: AppColors.gold, fontSize: 12)),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(value: 0.6, backgroundColor: AppColors.border, valueColor: AlwaysStoppedAnimation(AppColors.primary)),
+            ),
         ],
       ),
     );
   }
 
-  Widget _statCard(String label, String value, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Column(
+  Widget _statItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: AppColors.primary, size: 20),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Quick Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        const SizedBox(height: 8),
+        Row(
           children: [
-            Icon(icon, color: AppColors.primary, size: 20),
-            const SizedBox(height: 4),
-            Text(value, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+            Expanded(child: _quickAction(Icons.school, 'Ludo Academy', () => context.push('/academy'))),
+            const SizedBox(width: 8),
+            Expanded(child: _quickAction(Icons.play_arrow, 'Quick Play', () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Coming soon! Join a tournament to play.'), backgroundColor: AppColors.primary),
+              );
+            })),
+            const SizedBox(width: 8),
+            Expanded(child: _quickAction(Icons.fitness_center, 'Practice', () => context.push('/practice'))),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _quickAction(IconData icon, String label, VoidCallback onTap) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            children: [
+              Icon(icon, color: AppColors.primary, size: 28),
+              const SizedBox(height: 8),
+              Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+            ],
+          ),
         ),
       ),
     );

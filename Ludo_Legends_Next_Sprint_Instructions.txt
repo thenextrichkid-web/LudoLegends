@@ -1,0 +1,46 @@
+LUDO LEGENDS - NEXT STEPS AFTER SPRINT M0.2
+
+DO NOT START PLAYCORE DEVELOPMENT YET.
+
+Priority 1: Validate Sprint M0.2 completely.
+- Test every Home feature.
+- Welcome card (first login only)
+- Notification badge
+- Practice Mode (no wallet impact)
+- Academy navigation
+- Browse Upcoming Matches
+- Quick Play placeholder
+- Statistics
+- Responsive layout
+- Fix all bugs before new features.
+
+After M0.2 passes:
+
+SPRINT M0.3 - MATCHMAKING ENGINE
+Implement:
+- Entry pools (₹100-₹3000)
+- Join queue
+- Waiting queue
+- Queue timeout
+- Auto refund
+- Cancel queue
+- Live queue counters
+- Admin queue dashboard
+- Room creation workflow
+- Match lifecycle
+- Manual result verification
+- Wallet debit/credit flow
+
+Architecture:
+- Modular services
+- Config-driven business rules
+- Future AI automation ready
+- Future PlayCore integration ready
+
+PLAYCORE
+Only prepare architecture documentation:
+- Folder structure
+- Networking proposal
+- Multiplayer design
+- Engine modules
+Do not begin Unity implementation until MVP validation is complete.

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ludo_legends/services/auth_service.dart';
 import 'package:ludo_legends/core/theme/app_theme.dart';
@@ -14,31 +13,29 @@ class VerifyOtpScreen extends StatefulWidget {
 
 class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   final _otpController = TextEditingController();
-  final _referralController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
 
   Future<void> _verifyOtp() async {
-    if (_otpController.text.length != 6) return;
+    if (_otpController.text.length != 6 || _isLoading) return;
 
     setState(() => _isLoading = true);
     try {
-      await _authService.verifyOtp(
-        widget.phone,
-        _otpController.text,
-        referralCode: _referralController.text.isNotEmpty ? _referralController.text : null,
-      );
+      await _authService.verifyOtp(widget.phone, _otpController.text);
       if (mounted) {
         context.go('/home');
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().contains('Connection')
+            ? 'No internet connection. Please try again.'
+            : 'Invalid OTP. Please check and try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -46,37 +43,50 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Verify OTP')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Enter the 6-digit code sent to ${widget.phone}', style: const TextStyle(color: AppColors.textSecondary)),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _otpController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, letterSpacing: 8, color: AppColors.textPrimary),
-                decoration: const InputDecoration(hintText: '000000'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _referralController,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(hintText: 'Referral Code (Optional)', prefixIcon: Icon(Icons.card_giftcard, color: AppColors.textMuted)),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _verifyOtp,
-                child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Verify'),
-              ),
-            ],
-          ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('We sent a code to ${widget.phone}', style: const TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              style: const TextStyle(fontSize: 24, letterSpacing: 8, color: AppColors.textPrimary),
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(counterText: '', hintText: '------'),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _otpController.text.length == 6 && !_isLoading ? _verifyOtp : null,
+              child: _isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Verify OTP'),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _isLoading ? null : () async {
+                try {
+                  await _authService.requestOtp(widget.phone);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('OTP resent!'), backgroundColor: AppColors.success),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to resend OTP'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              },
+              child: const Text('Resend OTP', style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
         ),
       ),
     );
@@ -85,7 +95,6 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   @override
   void dispose() {
     _otpController.dispose();
-    _referralController.dispose();
     super.dispose();
   }
 }

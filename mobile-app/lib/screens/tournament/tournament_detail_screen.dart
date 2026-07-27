@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ludo_legends/core/theme/app_theme.dart';
 import 'package:ludo_legends/services/tournament_service.dart';
-import 'package:ludo_legends/models/tournament.dart';
 
 class TournamentDetailScreen extends StatefulWidget {
   final String tournamentId;
@@ -13,180 +12,125 @@ class TournamentDetailScreen extends StatefulWidget {
 }
 
 class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
-  Tournament? _tournament;
+  final _service = TournamentService();
   bool _isLoading = true;
   bool _isJoining = false;
+  bool _hasError = false;
+  Map<String, dynamic>? _tournament;
 
   @override
   void initState() {
     super.initState();
-    _loadTournament();
+    _load();
   }
 
-  Future<void> _loadTournament() async {
+  Future<void> _load() async {
+    setState(() { _isLoading = true; _hasError = false; });
     try {
-      _tournament = await TournamentService().getTournament(widget.tournamentId);
+      final t = await _service.getTournament(widget.tournamentId);
+      if (!mounted) return;
+      setState(() { _tournament = t.toJson(); _isLoading = false; });
     } catch (e) {
-      // Silent fail
+      if (!mounted) return;
+      setState(() { _hasError = true; _isLoading = false; });
     }
-    setState(() => _isLoading = false);
   }
 
-  Future<void> _joinTournament() async {
+  Future<void> _join() async {
+    if (_isJoining || _tournament == null) return;
     setState(() => _isJoining = true);
     try {
-      await TournamentService().joinTournament(widget.tournamentId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Joined successfully!'), backgroundColor: AppColors.success),
-        );
-        _loadTournament();
-      }
+      await _service.joinTournament(widget.tournamentId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Joined tournament!'), backgroundColor: AppColors.success),
+      );
+      _load();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to join: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      if (!mounted) return;
+      final msg = e.toString().contains('Connection')
+          ? 'No internet connection.'
+          : 'Failed to join. You may already be in this tournament.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+      );
+    } finally {
+      if (mounted) setState(() => _isJoining = false);
     }
-    setState(() => _isJoining = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
-    }
-
-    final tournament = _tournament;
-    if (tournament == null) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: Text('Tournament not found')));
-    }
-
     return Scaffold(
-      appBar: AppBar(title: Text(tournament.name)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Prize Pool
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.gold, Color(0xFFB8860B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  const Text('PRIZE POOL', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 12)),
-                  const SizedBox(height: 4),
-                  Text('₹${tournament.prizePool.toInt()}', style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Info Row
-            Row(
-              children: [
-                _infoCard('Entry Fee', '₹${tournament.entryFee.toInt()}', AppColors.primary),
-                const SizedBox(width: 12),
-                _infoCard('Players', '${tournament.currentParticipants}/${tournament.maxParticipants}', AppColors.secondary),
-                const SizedBox(width: 12),
-                _infoCard('Type', tournament.type.replaceAll('_', ' '), AppColors.gold),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Description
-            if (tournament.description != null) ...[
-              const Text('About', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-              const SizedBox(height: 8),
-              Text(tournament.description!, style: const TextStyle(color: AppColors.textSecondary)),
-              const SizedBox(height: 24),
-            ],
-
-            // Rules
-            if (tournament.rules != null) ...[
-              const Text('Rules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-              const SizedBox(height: 8),
-              Text(tournament.rules!, style: const TextStyle(color: AppColors.textSecondary)),
-              const SizedBox(height: 24),
-            ],
-
-            // Timeline
-            const Text('Timeline', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            const SizedBox(height: 12),
-            _timelineItem(Icons.play_arrow, 'Starts', tournament.startsAt, AppColors.success),
-            if (tournament.registrationDeadline != null)
-              _timelineItem(Icons.how_to_reg, 'Registration Deadline', tournament.registrationDeadline!, AppColors.gold),
-            if (tournament.endsAt != null)
-              _timelineItem(Icons.stop, 'Ends', tournament.endsAt!, AppColors.error),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: ElevatedButton(
-          onPressed: tournament.isJoinable && !_isJoining ? _joinTournament : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: tournament.isJoinable ? AppColors.primary : AppColors.textMuted,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-          ),
-          child: _isJoining
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(
-                  tournament.isJoinable ? 'Join Tournament - ₹${tournament.entryFee.toInt()}' : tournament.isFull ? 'Tournament Full' : 'Registration Closed',
-                  style: const TextStyle(fontSize: 16),
-                ),
-        ),
+      appBar: AppBar(title: const Text('Tournament')),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.primary,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : _hasError
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                        const SizedBox(height: 16),
+                        const Text('Failed to load tournament', style: TextStyle(color: AppColors.textSecondary)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                      ],
+                    ),
+                  )
+                : _tournament == null
+                    ? const SizedBox.shrink()
+                    : ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _tournament!['title'] ?? 'Tournament',
+                                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _infoRow(Icons.payments, 'Entry Fee', '₹${_tournament!['entry_fee'] ?? 0}'),
+                                  _infoRow(Icons.emoji_events, 'Prize Pool', '₹${_tournament!['prize_pool'] ?? 0}'),
+                                  _infoRow(Icons.people, 'Players', '${_tournament!['current_players'] ?? 0}/${_tournament!['max_players'] ?? 0}'),
+                                  _infoRow(Icons.calendar_today, 'Starts', _tournament!['start_time'] ?? 'TBD'),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _isJoining ? null : _join,
+                                      child: _isJoining
+                                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                          : const Text('Join Tournament', style: TextStyle(fontSize: 16)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
       ),
     );
   }
 
-  Widget _infoCard(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Column(
-          children: [
-            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _timelineItem(IconData icon, String label, DateTime date, Color color) {
+  Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
+          Icon(icon, size: 18, color: AppColors.textMuted),
+          const SizedBox(width: 10),
           Text(label, style: const TextStyle(color: AppColors.textSecondary)),
           const Spacer(),
-          Text(
-            '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
-            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
         ],
       ),
     );

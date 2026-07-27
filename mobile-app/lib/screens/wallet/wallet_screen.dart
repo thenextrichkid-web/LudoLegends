@@ -11,232 +11,226 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  Wallet? _wallet;
-  List<WalletTransaction> _transactions = [];
+  final _service = WalletService();
   bool _isLoading = true;
+  bool _hasError = false;
+  double _balance = 0;
+  List<WalletTransaction> _transactions = [];
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _load();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  Future<void> _load() async {
+    setState(() { _isLoading = true; _hasError = false; });
     try {
-      _wallet = await WalletService().getBalance();
-      _transactions = await WalletService().getTransactions();
+      final results = await Future.wait([
+        _service.getBalance(),
+        _service.getTransactions(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _balance = (results[0] as Wallet).balance;
+        _transactions = results[1] as List<WalletTransaction>;
+        _isLoading = false;
+      });
     } catch (e) {
-      // Silent fail
+      if (!mounted) return;
+      setState(() { _hasError = true; _isLoading = false; });
     }
-    setState(() => _isLoading = false);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Wallet')),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Balance Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, Color(0xFF5B1FD4)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    const Text('Available Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                    const SizedBox(height: 8),
-                    Text('₹${(_wallet?.balance ?? 0).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _balanceInfo('Deposited', '₹${(_wallet?.totalDeposited ?? 0).toStringAsFixed(0)}'),
-                        _balanceInfo('Earned', '₹${(_wallet?.totalEarned ?? 0).toStringAsFixed(0)}'),
-                        _balanceInfo('Withdrawn', '₹${(_wallet?.totalWithdrawn ?? 0).toStringAsFixed(0)}'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showDepositDialog(),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Deposit'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showWithdrawDialog(),
-                      icon: const Icon(Icons.arrow_upward),
-                      label: const Text('Withdraw'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(color: AppColors.border),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Transactions
-              const Text('Transactions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-              const SizedBox(height: 12),
-              _transactions.isEmpty
-                  ? const Center(child: Text('No transactions yet', style: TextStyle(color: AppColors.textMuted)))
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _transactions.length,
-                      itemBuilder: (context, index) => _transactionTile(_transactions[index]),
-                    ),
-            ],
-          ),
+  void _showDepositDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Deposit', style: TextStyle(color: AppColors.textPrimary)),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: const InputDecoration(hintText: 'Amount (₹)', prefixText: '₹ '),
         ),
-      ),
-    );
-  }
-
-  Widget _balanceInfo(String label, String value) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
-        const SizedBox(height: 2),
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _transactionTile(WalletTransaction tx) {
-    final isCredit = ['deposit', 'prize', 'referral_bonus', 'refund'].contains(tx.type);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: (isCredit ? AppColors.success : AppColors.error).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-              color: isCredit ? AppColors.success : AppColors.error,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tx.type.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500, fontSize: 13)),
-                if (tx.description != null) Text(tx.description!, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-              ],
-            ),
-          ),
-          Text(
-            '${isCredit ? '+' : '-'}₹${tx.amount.toInt()}',
-            style: TextStyle(color: isCredit ? AppColors.success : AppColors.error, fontWeight: FontWeight.bold),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final amount = double.tryParse(controller.text);
+              if (amount == null || amount <= 0) return;
+              Navigator.pop(ctx);
+              try {
+                await _service.deposit(amount, 'upi');
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Deposit successful!'), backgroundColor: AppColors.success),
+                );
+                _load();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(e.toString().contains('Connection') ? 'No internet connection.' : 'Deposit failed.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            },
+            child: const Text('Deposit'),
           ),
         ],
       ),
     );
   }
 
-  void _showDepositDialog() {
-    showModalBottomSheet(
+  void _showWithdrawDialog() {
+    final controller = TextEditingController();
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Deposit', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            const SizedBox(height: 16),
-            const TextField(
-              keyboardType: TextInputType.number,
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 18),
-              decoration: InputDecoration(hintText: 'Amount', prefixText: '₹ '),
-            ),
-            const SizedBox(height: 16),
-            const TextField(
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(hintText: 'Payment Method (UPI / Bank)'),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Deposit')),
-            const SizedBox(height: 24),
-          ],
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Withdraw', style: TextStyle(color: AppColors.textPrimary)),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: const InputDecoration(hintText: 'Amount (₹)', prefixText: '₹ '),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final amount = double.tryParse(controller.text);
+              if (amount == null || amount <= 0) return;
+              Navigator.pop(ctx);
+              try {
+                await _service.withdraw(amount, 'upi', '');
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Withdrawal requested!'), backgroundColor: AppColors.success),
+                );
+                _load();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(e.toString().contains('Connection') ? 'No internet connection.' : 'Withdrawal failed.'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            },
+            child: const Text('Withdraw'),
+          ),
+        ],
       ),
     );
   }
 
-  void _showWithdrawDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Withdraw', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-            const SizedBox(height: 16),
-            const TextField(
-              keyboardType: TextInputType.number,
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 18),
-              decoration: InputDecoration(hintText: 'Amount', prefixText: '₹ '),
-            ),
-            const SizedBox(height: 16),
-            const TextField(
-              style: TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(hintText: 'Payment Details (UPI ID / Bank Account)'),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Withdraw')),
-            const SizedBox(height: 24),
-          ],
-        ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Wallet')),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.primary,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : _hasError
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.wifi_off, size: 48, color: AppColors.textMuted),
+                        const SizedBox(height: 16),
+                        const Text('Failed to load wallet', style: TextStyle(color: AppColors.textSecondary)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                      ],
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              const Text('Balance', style: TextStyle(color: AppColors.textSecondary)),
+                              const SizedBox(height: 4),
+                              Text(
+                                '₹${_balance.toStringAsFixed(0)}',
+                                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: _showDepositDialog,
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Deposit'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: _balance > 0 ? _showWithdrawDialog : null,
+                                      icon: const Icon(Icons.remove),
+                                      label: const Text('Withdraw'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Transactions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                      const SizedBox(height: 8),
+                      if (_transactions.isEmpty)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(Icons.receipt_long, size: 48, color: AppColors.textMuted.withOpacity(0.5)),
+                                  const SizedBox(height: 12),
+                                  const Text('No transactions yet', style: TextStyle(color: AppColors.textSecondary)),
+                                  const SizedBox(height: 4),
+                                  const Text('Deposit to start playing!', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ..._transactions.map((t) => Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: Icon(
+                              t.type == 'credit' ? Icons.arrow_downward : Icons.arrow_upward,
+                              color: t.type == 'credit' ? AppColors.success : AppColors.error,
+                            ),
+                            title: Text(t.description ?? t.type.toUpperCase(), style: const TextStyle(color: AppColors.textPrimary)),
+                            subtitle: Text('${t.createdAt.day}/${t.createdAt.month}/${t.createdAt.year}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                            trailing: Text(
+                              '${t.type == 'credit' ? '+' : '-'}₹${t.amount.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: t.type == 'credit' ? AppColors.success : AppColors.error,
+                              ),
+                            ),
+                          ),
+                        )),
+                    ],
+                  ),
       ),
     );
   }
