@@ -1,0 +1,505 @@
+LUDO LEGENDS - DEVELOPER READINESS CHECKLIST v1.0
+Last Updated: 2026-07-27
+
+================================================================================
+SECTION 1 - PROJECT STATUS
+================================================================================
+1. Is the project feature-complete according to the current scope?
+   ANSWER: ~70% complete. Core architecture is solid, backend APIs are functional,
+   Flutter screens are real implementations. Major gaps remain in OTP flow,
+   giveaway module, admin create-tournament UI, and production hardening.
+
+2. If No, what features are still pending?
+   - OTP verification is BROKEN (see Section 15 for details) — verify endpoint
+     does not actually validate the OTP code. Any 6-digit string passes.
+   - OTP hash is not persisted to the database — no server-side OTP validation.
+   - Giveaway module: DB model exists, NO API endpoints, NO admin UI, NO Flutter screen.
+   - Tournament editing: No API endpoint to edit an existing tournament.
+   - Winner declaration: Match verify exists in backend, but no dedicated "declare
+     winner" admin UI flow in Flutter — only in React admin dashboard.
+   - Deposit approval: No admin API endpoint for approving/rejecting deposits.
+     The DepositRequest model exists but no routes use it.
+   - Push notifications: Firebase model exists, no push notification sending logic.
+   - Notifications API: No CRUD endpoints for notifications.
+   - Leaderboard calculation: Model exists, no service to calculate/update rankings.
+   - Profile editing: No API endpoint to update user profile (name, email, avatar).
+   - Screenshot upload: Match submit takes a screenshot_url (text), no actual
+     file upload to S3/storage.
+   - WhatsApp sharing: Not implemented.
+   - Database migrations: Using auto-create (Base.metadata.create_all), no Alembic.
+   - Seed data: Not available.
+   - Audit log model exists but nothing writes to it.
+
+3. Which environment is this build running on? (Development / Testing / Staging)
+   ANSWER: Development. All services run locally via Docker Compose.
+   ENVIRONMENT=development in .env file.
+
+4. Is the frontend connected to the backend?
+   ANSWER: YES — Flutter app (mobile-app) talks to FastAPI backend on localhost:8000.
+   For emulator: uses 10.0.2.2:8000. For physical phone: uses PC's LAN IP (192.168.1.4:8000).
+   React admin dashboard runs on localhost:3001 and connects to same backend.
+   CURRENT ISSUE: API base URL must be changed depending on emulator vs phone.
+   The URL is currently set to 10.0.2.2:8000 for emulator testing.
+
+5. Are all APIs integrated? If not, list the missing ones.
+   INTEGRATED in Flutter:
+   - Auth (OTP request/verify) — PARTIALLY BROKEN (OTP verify doesn't validate)
+   - Tournaments (list, detail, join)
+   - Wallet (balance, transactions)
+   - Matches (submit)
+   - Referrals (stats)
+   - Leaderboard (display)
+   - Profile (view only)
+
+   NOT INTEGRATED in Flutter:
+   - Profile editing (no backend endpoint exists either)
+   - Giveaway screen (not implemented at all)
+   - Admin tournament creation (backend exists, no Flutter UI)
+   - Admin match verification (backend exists, React admin has UI)
+   - Push notification registration (FCM token not sent to backend)
+   - Notification listing/reading
+   - Deposit/withdrawal request submission (backend exists, no Flutter UI)
+
+================================================================================
+SECTION 2 - AUTHENTICATION
+================================================================================
+6. Can a new user register successfully?
+   ANSWER: PARTIALLY. New users are auto-created when OTP is requested, but the
+   OTP verify flow has a CRITICAL BUG: the verify endpoint does NOT validate the
+   OTP code. It marks the user as verified and issues tokens regardless of the
+   OTP value entered. So registration "works" but is not secure.
+
+7. Can users log in successfully?
+   ANSWER: YES — in the sense that calling verify_otp with any 6-digit code
+   returns a valid JWT token pair. Not secure for production.
+
+8. Can users log out?
+   ANSWER: YES — Flutter secure storage tokens are deleted on logout. Profile
+   screen has a logout button.
+
+9. Is the session maintained after reopening the app?
+   ANSWER: YES — JWT tokens stored in FlutterSecureStorage (Android Keystore /
+   iOS Keychain). ApiClient auto-refreshes expired access tokens using refresh
+   tokens. Sessions persist across app restarts.
+
+10. Are invalid login attempts handled correctly?
+    ANSWER: PARTIALLY. The backend returns proper HTTP error codes (400 for bad
+    OTP, 401 for invalid tokens), but since OTP verify accepts ANY code, there
+    is no real "invalid login" scenario currently. Rate limiting is NOT implemented.
+
+================================================================================
+SECTION 3 - PROFILE
+================================================================================
+11. Can users edit their profile?
+    ANSWER: NO — There is no API endpoint to update user profile fields (name,
+    email, avatar). The Flutter profile screen displays data but has no edit
+    functionality.
+
+12. Is profile data saved correctly?
+    ANSWER: N/A — Profile editing not implemented.
+
+13. Are validation errors displayed correctly?
+    ANSWER: PARTIALLY — Flutter screens have try/catch with SnackBar error
+    messages. Backend returns proper HTTPException with detail strings.
+    No client-side form validation on profile fields.
+
+================================================================================
+SECTION 4 - WALLET
+================================================================================
+14. Is the wallet balance displayed correctly?
+    ANSWER: YES — Wallet screen calls GET /api/wallet/ which returns the wallet
+    object with balance, frozen, total_deposited, total_withdrawn, total_earned.
+
+15. Are manual deposits reflected after admin approval?
+    ANSWER: PARTIALLY — The DepositRequest model exists and the wallet deposit
+    endpoint works, but there is NO admin API endpoint to approve/reject
+    deposits. The deposit endpoint directly credits the wallet.
+
+16. Are manual withdrawals working?
+    ANSWER: PARTIALLY — Withdrawal request endpoint exists (POST /api/wallet/withdraw),
+    admin approval/rejection endpoints exist (POST /api/admin/withdrawals/{id}/approve|reject),
+    but NO Flutter UI exists for submitting withdrawal requests.
+
+17. Is transaction history working?
+    ANSWER: YES — GET /api/wallet/transactions returns paginated transaction history.
+    Flutter wallet screen displays it.
+
+18. Is every wallet transaction logged?
+    ANSWER: YES — Every wallet operation (deposit, withdrawal, entry_fee, prize,
+    refund, referral_bonus, adjustment) creates a WalletTransaction record with
+    type, amount, balance_before, balance_after, and description.
+
+================================================================================
+SECTION 5 - TOURNAMENTS
+================================================================================
+19. Can tournaments be created?
+    ANSWER: YES via API (POST /api/tournaments/ — admin only). React admin
+    dashboard has a tournament creation page. No tournament creation in Flutter.
+
+20. Can tournaments be edited?
+    ANSWER: NO — No API endpoint exists for editing tournaments after creation.
+
+21. Can tournaments be cancelled?
+    ANSWER: YES — POST /api/tournaments/{id}/cancel (admin only). Automatically
+    refunds all participants' entry fees with REFUND transaction type.
+
+22. Can players join tournaments?
+    ANSWER: YES — POST /api/tournaments/{id}/join (authenticated user).
+    Flutter tournament detail screen has a Join button.
+
+23. Is the entry fee deducted correctly?
+    ANSWER: YES — join_tournament checks wallet balance >= entry_fee, then
+    calls WalletService.deduct() with TransactionType.ENTRY_FEE.
+
+24. Is the refund flow implemented?
+    ANSWER: YES — On tournament cancellation, WalletService.credit() is called
+    for each participant with TransactionType.REFUND. Also works for withdrawal
+    rejection.
+
+25. Is winner declaration working?
+    ANSWER: PARTIALLY — Match verify endpoint (POST /api/matches/{id}/verify)
+    accepts action (approve/reject), winner_id, score, prize_awarded. On approve,
+    it credits the winner's wallet and updates user stats. But no dedicated
+    "declare winner" flow exists separate from match verification.
+
+26. Is prize distribution working?
+    ANSWER: YES — When admin verifies a match with a winner_id and prize_awarded > 0,
+    the prize is automatically credited to the winner's wallet via
+    WalletService.credit() with TransactionType.PRIZE.
+
+================================================================================
+SECTION 6 - REFERRALS
+================================================================================
+27. Is referral code generation working?
+    ANSWER: YES — Auto-generated on user creation as "LL" + 8 hex chars
+    (e.g., LL4A3B2C1D). Unique, indexed.
+
+28. Is referral tracking working?
+    ANSWER: YES — Backend tracks referred_by on User model. ReferralService
+    provides stats (total, active, earnings) and paginated list.
+
+29. Are referral bonuses handled correctly?
+    ANSWER: YES — Configurable via REFERRAL_BONUS_AMOUNT env var (default ₹50).
+    Self-referral is blocked. Credits referrer's wallet and updates
+    referral_earnings on User model.
+
+================================================================================
+SECTION 7 - GIVEAWAYS
+================================================================================
+30. Is the giveaway module implemented?
+    ANSWER: PARTIALLY — Database model (giveaways table) exists with 16 fields
+    and GiveawayStatus enum. NO API endpoints. NO admin UI. NO Flutter screen.
+
+31. Can admins select giveaway winners?
+    ANSWER: NO — No giveaway API or UI exists.
+
+================================================================================
+SECTION 8 - NOTIFICATIONS
+================================================================================
+32. Are in-app notifications working?
+    ANSWER: NO — Notification model exists with NotificationType enum (tournament,
+    wallet, giveaway, referral, system, promotional). NO API endpoints to create,
+    list, or mark notifications as read. Flutter has app_notification model but
+    no notification screen.
+
+33. Are WhatsApp sharing features implemented (if applicable)?
+    ANSWER: NO — Not implemented.
+
+================================================================================
+SECTION 9 - ADMIN PANEL (React Dashboard)
+================================================================================
+34. Can admins log in?
+    ANSWER: YES — React admin dashboard has a login page connecting to backend
+    auth endpoints.
+
+35. Can admins create tournaments?
+    ANSWER: YES — React admin dashboard has a tournament creation page.
+
+36. Can admins approve deposits?
+    ANSWER: NO — The DepositRequest model exists but no admin API endpoint for
+    deposit approval/rejection. The wallet deposit endpoint credits directly.
+
+37. Can admins approve withdrawals?
+    ANSWER: YES — POST /api/admin/withdrawals/{id}/approve and /reject endpoints
+    exist. React admin has a Withdrawals page. Approval unfreezes funds.
+    Rejection refunds balance and creates REFUND transaction.
+
+38. Can admins declare winners?
+    ANSWER: PARTIALLY — Match verify endpoint exists in backend. React admin
+    has a Matches page for pending verification.
+
+39. Can admins send announcements?
+    ANSWER: NO — No announcement/notification sending endpoint exists.
+
+40. Can admins view player history?
+    ANSWER: YES — GET /api/admin/users lists all users with stats (earnings,
+    matches, wins, VIP level). React admin has a Users page.
+
+================================================================================
+SECTION 10 - BACKEND
+================================================================================
+41. Are all APIs documented?
+    ANSWER: YES — FastAPI auto-generates OpenAPI docs at /docs and /redoc.
+    8 router modules with ~25 endpoints total.
+
+42. Is API authentication implemented?
+    ANSWER: YES — HTTPBearer JWT authentication. Three-tier RBAC:
+    - get_current_user: any authenticated user
+    - get_admin_user: admin or super_admin role required
+    - get_super_admin_user: super_admin role only
+
+43. Are error responses standardized?
+    ANSWER: PARTIALLY — Uses FastAPI HTTPException with status codes and detail
+    messages. No custom error response schema/format.
+
+44. Are logs enabled?
+    ANSWER: MINIMAL — Docker logs are available via `docker logs`. No structured
+    logging, no log levels, no log rotation configured. AuditLog model exists
+    but nothing writes to it.
+
+45. Are environment variables configured?
+    ANSWER: YES — .env file with DATABASE_URL, REDIS_URL, JWT keys, Twilio
+    placeholders, auto-move config, referral bonus. JWT secrets are PLACEHOLDER
+    values (not production-safe).
+
+================================================================================
+SECTION 11 - DATABASE
+================================================================================
+46. Are database migrations complete?
+    ANSWER: NO — Using Base.metadata.create_all() for auto-creation on startup.
+    No Alembic migration setup. Schema changes will require manual DB intervention.
+
+47. Is seed data available?
+    ANSWER: NO — No seed scripts. No initial admin user created. No sample
+    tournaments or test data.
+
+48. Is backup functionality documented?
+    ANSWER: NO — PostgreSQL runs in Docker. No backup scripts, no cron jobs,
+    no documentation.
+
+================================================================================
+SECTION 12 - SECURITY
+================================================================================
+49. Can users access other users' data? (Expected: No)
+    ANSWER: MOSTLY SAFE — All authenticated endpoints use get_current_user to
+    scope data to the logged-in user. Wallet, matches, referrals all filter by
+    user_id. However, the referral processing endpoint (POST /api/referrals/process/{new_user_id})
+    could potentially be abused if called with another user's ID.
+
+50. Are admin routes protected?
+    ANSWER: YES — All admin endpoints use get_admin_user or get_super_admin_user
+    dependency injection. Returns 403 Forbidden for non-admin users.
+
+51. Are duplicate transactions prevented?
+    ANSWER: NO — No idempotency keys or duplicate transaction checks. Multiple
+    rapid deposit/withdrawal requests could create duplicate transactions.
+    Tournament join has a duplicate participant check, which is good.
+
+================================================================================
+SECTION 13 - PERFORMANCE
+================================================================================
+52. Have basic performance tests been run?
+    ANSWER: NO — No load testing, no performance benchmarks, no profiling done.
+
+53. Approximately how many concurrent users has the system been tested with?
+    ANSWER: 0 concurrent users tested. Only developer testing on local machine.
+
+================================================================================
+SECTION 14 - CODE QUALITY
+================================================================================
+54. Are there any known bugs? List them.
+    CRITICAL BUGS:
+    a) OTP VERIFICATION IS BROKEN — verify_otp_and_login() does NOT validate the
+       OTP code. It accepts any 6-digit string and issues tokens. The hash_otp()
+       function in security.py generates a random TOTP secret that has nothing to
+       do with the actual OTP value. verify_otp() is never called.
+    b) OTP HASH IS NOT PERSISTED — The otp_hash returned by request_otp() is never
+       stored in the database, so there is no way to verify the OTP server-side.
+
+    MEDIUM BUGS:
+    c) Flutter analyze shows 28 issues (27 info/warnings + 1 error in test file).
+    d) fluttertoast dependency was incompatible with Flutter 3.44 — removed but
+       may be needed for in-app messages.
+    e) API base URL must be manually changed between emulator (10.0.2.2) and
+       physical phone (192.168.1.4).
+
+    MINOR:
+    f) Deprecated `withOpacity()` calls in several Flutter screens.
+    g) Unused import in tournament_detail_screen.dart.
+
+55. Are there any temporary workarounds?
+    - NDK 28.2 directory has a spoofed source.properties (says 28.2 but content
+      is NDK r28b which is actually 28.1). Works for now.
+    - API URL hardcoded — needs manual change for different environments.
+    - No rate limiting — open to abuse in current form.
+
+56. What remains unfinished?
+    - OTP verification (critical security fix needed)
+    - Giveaway module (no endpoints, no UI)
+    - Notification system (no send/read API, no Flutter screen)
+    - Profile editing (no API, no UI)
+    - Deposit approval flow (no admin endpoint)
+    - Leaderboard calculation service
+    - Audit log writing
+    - File upload (S3 integration)
+    - Push notification sending
+    - Database migrations (Alembic)
+    - Seed data / initial admin user
+    - Rate limiting
+    - Production environment config
+    - Error logging / monitoring
+
+57. What would you improve before production?
+    1. Fix OTP verification immediately (security-critical)
+    2. Set up Alembic migrations
+    3. Create initial admin user seed script
+    4. Implement rate limiting on auth endpoints
+    5. Add structured logging (Python logging module)
+    6. Set up proper error handling with standardized error responses
+    7. Add HTTPS / TLS termination
+    8. Replace placeholder JWT secrets
+    9. Add input validation and sanitization
+    10. Implement idempotency keys for wallet transactions
+    11. Add monitoring (health checks, alerting)
+    12. Set up CI/CD pipeline
+    13. Add database connection pooling tuning
+    14. Implement proper CORS for production domains
+    15. Add API versioning strategy
+
+58. Is the current build suitable for founder testing?
+    ANSWER: CONDITIONALLY YES — The founder can test the UI flow, tournament
+    browsing, and wallet display. Login will "work" (any OTP passes) which is
+    actually convenient for testing. But the founder should be aware that:
+    - No real SMS OTP is sent
+    - Security is not production-grade
+    - Some screens (giveaway, notifications) don't exist yet
+
+59. Is the current build suitable for beta users?
+    ANSWER: NO — Critical security issues (OTP bypass), missing core features
+    (notifications, giveaways, profile editing), no rate limiting, no monitoring.
+
+60. If No, what blockers remain?
+    - CRITICAL: OTP verification bypass (any code accepted)
+    - HIGH: No push notifications
+    - HIGH: No giveaway module
+    - HIGH: No profile editing
+    - MEDIUM: No deposit approval flow
+    - MEDIUM: No database migrations
+    - MEDIUM: No seed data / admin user
+    - MEDIUM: No rate limiting
+    - LOW: No monitoring / alerting
+    - LOW: No load testing
+
+61. Overall completion percentage:
+    Frontend (Flutter):   55% — 11 real screens, but missing giveaway,
+                          notifications, profile edit, withdrawal/deposit UI
+    Backend (FastAPI):    75% — All core APIs exist, but OTP is broken,
+                          giveaway/notifications have no endpoints,
+                          no profile edit, no deposit approval
+    Database:             85% — 15 tables fully modeled with relationships
+                          and enums. No migrations, no seed data.
+    Testing:              5%  — Only manual developer testing. No unit tests,
+                          no integration tests, no load tests.
+    Deployment:           40% — Docker Compose works locally. No production
+                          deployment config, no CI/CD, no cloud hosting.
+    OVERALL:              ~55%
+
+================================================================================
+SECTION 15 - OTP TROUBLESHOOTING
+================================================================================
+1. Is the OTP flow using a mock OTP or a real SMS provider?
+   ANSWER: MOCK. Twilio credentials in .env are empty strings. The backend
+   generates a random 6-digit OTP but does NOT send it via SMS. The OTP is
+   returned in the API response dict (but the frontend doesn't display it).
+
+2. Which SMS provider is integrated? (Firebase / Twilio / MSG91 / Fast2SMS / Other)
+   ANSWER: Twilio (code exists in auth_service.py) but NOT configured.
+   Credentials are empty: TWILIO_ACCOUNT_SID="", TWILIO_AUTH_TOKEN="",
+   TWILIO_PHONE_NUMBER=""
+
+3. If Firebase is used:
+   - Is SHA-1/SHA-256 configured?
+   ANSWER: N/A — Firebase is not used for OTP. Firebase is included for
+   push notifications (firebase_messaging) only.
+
+4. Is the OTP request reaching the backend?
+   ANSWER: YES — POST /api/auth/otp/request works. Backend creates/updates
+   the User record and returns success.
+
+5. Is the backend sending the OTP successfully?
+   ANSWER: NO — Twilio is not configured, so no SMS is sent. The backend
+   returns {"message": "OTP sent successfully"} but nothing is actually sent.
+
+6. Is the SMS provider account configured correctly?
+   ANSWER: NO — All Twilio env vars are empty. No SMS provider is configured.
+
+7. Are all required environment variables configured?
+   ANSWER: NO — TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+   are all empty. These need real Twilio credentials for SMS delivery.
+
+8. What is the exact console or backend error message?
+   ANSWER: No error — the backend silently skips SMS sending when Twilio
+   credentials are empty. The OTP is generated but never delivered to the user.
+   The frontend shows "Failed to send OTP" because it cannot display the OTP
+   to the user — the API response only returns {"message": "OTP sent successfully"},
+   not the OTP code itself.
+
+9. Is the emulator configured correctly for OTP testing?
+   ANSWER: NO — The emulator needs to reach the backend at 10.0.2.2:8000
+   (which was just fixed). But even with correct connectivity, no OTP is
+   delivered. For testing purposes, we need either:
+   a) A mock OTP that is always "123456" in development mode, OR
+   b) Twilio test credentials that log OTPs without sending real SMS, OR
+   c) A simple OTP display in the backend response during development
+
+   CURRENT BLOCKER: The frontend shows "Failed to send OTP" error.
+   This is likely because the backend endpoint DOES work (returns 200),
+   but the frontend error handling is catching something else — possibly
+   a connection error if the emulator was using localhost:8000 instead of
+   10.0.2.2:8000 before the fix.
+
+================================================================================
+FINAL CTO QUESTION
+================================================================================
+If you had to launch this app to 500 real users tomorrow, what are the TOP FIVE
+things that would worry you the most?
+
+1. OTP BYPASS — Anyone can log in as any user with any 6-digit code. This is a
+   complete authentication bypass. An attacker could take over any account.
+
+2. NO RATE LIMITING — The auth endpoints, wallet operations, and tournament joins
+   have no rate limiting. A simple script could brute-force accounts or drain
+   wallets through repeated requests.
+
+3. NO HTTPS — The backend runs on plain HTTP. All JWT tokens, phone numbers, and
+   wallet data are transmitted in cleartext. Anyone on the same network can
+   intercept everything (MITM attack).
+
+4. WALLET INTEGRITY — No idempotency on wallet transactions. No duplicate
+   prevention. Race conditions on concurrent requests could lead to double-
+   spending or incorrect balances. The frozen balance model for withdrawals
+   is a good start but needs stress testing.
+
+5. ZERO TESTING — No unit tests, no integration tests, no security tests. The
+   entire system has only been manually tested by a developer on localhost.
+   There is no confidence that edge cases, error handling, or concurrent
+   scenarios work correctly.
+
+================================================================================
+CURRENT BUILD STATUS (as of 2026-07-27)
+================================================================================
+Backend:     RUNNING (Docker) — http://localhost:8000/health → healthy
+Database:    RUNNING (PostgreSQL 16 in Docker)
+Redis:       RUNNING (Redis 7 in Docker)
+Flutter APK: BUILT (app-debug.apk, 151 MB) — zero compile errors
+Emulator:    Was running, may need restart
+Phone:       NOT connected (USB debugging setup issues)
+React Admin: RUNNING on http://localhost:3001
+
+IMMEDIATE NEXT STEPS:
+1. Fix the OTP flow for development testing (add dev-mode OTP bypass or
+   configure a mock SMS service)
+2. Reinstall APK on emulator and test the full login flow
+3. Fix the API base URL to auto-detect environment
+4. Add Alembic for database migrations
+5. Create seed data (admin user + sample tournament)
