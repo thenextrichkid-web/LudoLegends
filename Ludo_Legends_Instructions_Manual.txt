@@ -1,0 +1,278 @@
+================================================================
+  LUDO LEGENDS - INSTRUCTIONS MANUAL
+  Sprint 1.1 Build | Version 1.0.0
+  Date: July 27, 2026
+================================================================
+
+
+TABLE OF CONTENTS
+-----------------
+  1. Quick Access Links
+  2. Download & Install APK (Android)
+  3. OTP Login Flow (Dev Mode)
+  4. Pre-Seeded Test Accounts
+  5. Flutter Web PWA (Browser)
+  6. Admin Dashboard
+  7. API Documentation
+  8. Troubleshooting
+  9. Local Development Setup
+
+
+================================================================
+1. QUICK ACCESS LINKS
+================================================================
+
+  Service            URL
+  -------            ---
+  Flutter PWA:       http://35.193.127.84:8000
+  Admin Dashboard:   http://35.193.127.84:8000/admin
+  API Docs:          http://35.193.127.84:8000/docs
+  Health Check:      http://35.193.127.84:8000/health
+  APK Download:      http://35.193.127.84:8000/download/apk
+
+
+================================================================
+2. DOWNLOAD & INSTALL APK (ANDROID)
+================================================================
+
+  Method A: From Server (direct download)
+  ----------------------------------------
+  a) Open Chrome on your Android phone
+  b) Go to: http://35.193.127.84:8000/download/apk
+  c) The APK file (LudoLegends.apk) will download
+     (approx. 174 MB - make sure you're on WiFi)
+  d) When download completes, tap the notification
+  e) If prompted "Install from unknown sources":
+     - Tap "Settings"
+     - Enable "Allow from this source" for your browser
+     - Go back and tap "Install"
+  f) Tap "Open" when installation completes
+  g) You should see the Ludo Legends splash screen
+
+  Method B: Via ADB (from PC)
+  ----------------------------------------
+  a) Connect phone via USB with Developer Options + USB Debugging enabled
+     OR start the Android emulator
+  b) Run:
+     adb install -r mobile-app\build\app\outputs\flutter-apk\app-debug.apk
+  c) Launch from phone or run:
+     adb shell am start -n com.ludolegends.ludo_legends/.MainActivity
+
+
+================================================================
+3. OTP LOGIN FLOW (DEV MODE)
+================================================================
+
+  IMPORTANT: The app is in DEVELOPMENT mode.
+  The OTP is ALWAYS "123456" - no real SMS is sent.
+
+  Steps:
+  -------
+  1. Open the app (splash screen loads)
+  2. You'll see the OTP Screen with a phone number input
+  3. Enter any valid phone number (e.g., +919876543210)
+  4. Tap "Send OTP"
+     - On server, a dev OTP "123456" is stored in Redis (5-min TTL)
+     - The server logs will print: [DEV] OTP for +919876543210: 123456
+  5. You'll navigate to the Verify OTP screen
+  6. Enter: 1 2 3 4 5 6
+  7. Tap "Verify"
+  8. If the phone matches a seeded account, you're logged in
+  9. You'll see the Home Screen
+
+  What happens on verify:
+  - Server validates the OTP against Redis (not hardcoded!)
+  - If OTP is wrong or expired -> error shown
+  - If OTP is correct -> JWT access + refresh tokens returned
+  - User data (role, name) stored locally
+
+
+================================================================
+4. PRE-SEEDED TEST ACCOUNTS
+================================================================
+
+  These accounts exist in the database from seed.py:
+
+  Role          Phone              OTP     Notes
+  ----          -----              ---     -----
+  Super Admin   +910000000000      123456  Can access admin dashboard
+  Player        +919876543210      123456  Regular player
+
+  Wallets:
+  - Admin wallet:  Rs 10,000 balance
+  - Player wallet: Rs 500 balance
+
+  Tournaments:
+  1. "Sample Championship" - Entry: Rs 100, Prize: Rs 500
+  2. "Jackpot Night"       - Entry: Rs 250, Prize: Rs 2000
+
+
+================================================================
+5. FLUTTER WEB PWA (BROWSER)
+================================================================
+
+  Open in any modern browser:
+    http://35.193.127.84:8000
+
+  The Flutter app runs as a PWA (Progressive Web App).
+  You can install it to your home screen:
+
+  Android Chrome:
+  - Tap the 3-dot menu -> "Add to Home screen"
+  - Confirm the install
+
+  Desktop Chrome:
+  - Click the install icon in the address bar
+  - Or 3-dot menu -> "Install Ludo Legends"
+
+  The PWA uses the same OTP flow as the APK.
+
+
+================================================================
+6. ADMIN DASHBOARD
+================================================================
+
+  URL:  http://35.193.127.84:8000/admin
+
+  Login:
+  - Phone: +910000000000
+  - OTP: 123456
+  - Role: super_admin
+
+  Dashboard Features:
+  - Overview: Total users, tournaments, matches, wallet activity
+  - Users: List all users, change roles
+  - Tournaments: View/create/manage tournaments
+  - Matches: Review match submissions, approve/reject
+  - Wallet: View transactions, manage withdrawals
+  - Auto-Move Settings: Configure auto-move limits and penalties
+
+
+================================================================
+7. API DOCUMENTATION
+================================================================
+
+  Swagger UI:  http://35.193.127.84:8000/docs
+  ReDoc:       http://35.193.127.84:8000/redoc
+  OpenAPI:     http://35.193.127.84:8000/openapi.json
+
+  Key API Endpoints:
+  ------------------
+  POST   /api/auth/otp/request      - Request OTP for phone number
+  POST   /api/auth/otp/verify       - Verify OTP and get tokens
+  POST   /api/auth/refresh          - Refresh access token
+  GET    /api/auth/me               - Get current user profile
+
+  GET    /api/tournaments           - List tournaments
+  POST   /api/tournaments           - Create tournament (admin)
+  POST   /api/tournaments/{id}/join - Join a tournament
+
+  POST   /api/matches               - Submit match result
+  GET    /api/matches               - List matches
+
+  GET    /api/wallet                - Get wallet balance
+  POST   /api/wallet/deposit        - Deposit funds
+  POST   /api/wallet/withdraw       - Request withdrawal
+  GET    /api/wallet/transactions   - Transaction history
+
+  GET    /api/referrals             - Get referral info
+  GET    /api/referrals/stats       - Referral statistics
+
+  Admin endpoints:
+  GET    /api/admin/dashboard       - Admin overview stats
+  GET    /api/admin/users           - List all users
+  PUT    /api/admin/users/{id}/role - Change user role
+  GET    /api/admin/withdrawals     - List withdrawal requests
+  PUT    /api/admin/withdrawals/{id}/approve - Approve withdrawal
+  PUT    /api/admin/withdrawals/{id}/reject  - Reject withdrawal
+
+
+================================================================
+8. TROUBLESHOOTING
+================================================================
+
+  Problem: "Connection refused" or blank screen
+  Solution: The server may be restarting. Wait 10 seconds and refresh.
+           Check health: http://35.193.127.84:8000/health
+
+  Problem: "OTP verification failed"
+  Solution: Make sure you're entering 123456 (dev mode OTP).
+           OTP expires after 5 minutes. Request a new one.
+
+  Problem: APK install fails with "Insufficient storage"
+  Solution: Free up phone storage. APK is ~174MB + needs
+           extraction space. Minimum 500MB free recommended.
+
+  Problem: API calls fail on PWA (mixed content)
+  Solution: N/A - The PWA and API are served from the same port.
+           Both are at http://35.193.127.84:8000
+
+  Problem: Emulator can't connect to server
+  Solution: The APK connects to http://35.193.127.84:8000 (GCP VM).
+           The emulator needs internet access to reach it.
+
+  Problem: Admin dashboard shows "401 Unauthorized"
+  Solution: Login with +910000000000 / 123456 (Super Admin account).
+
+
+================================================================
+9. LOCAL DEVELOPMENT SETUP
+================================================================
+
+  Backend (Docker):
+  -----------------
+  cd backend-api
+  docker compose up -d --build
+  # API at http://localhost:8000
+  # DB at localhost:5432, Redis at localhost:6379
+
+  Flutter App:
+  ------------
+  cd mobile-app
+  flutter pub get
+
+  # Run on emulator (auto-connects to localhost:8000)
+  flutter run
+
+  # Run on web (connects to GCP server via proxy)
+  flutter run -d chrome
+
+  # Build APK
+  flutter build apk --debug
+
+  # Build Web
+  flutter build web --release
+
+  Admin Dashboard:
+  ----------------
+  cd admin-dashboard
+  npm install
+  npm run dev
+  # Dashboard at http://localhost:3001
+
+  Environment Variables:
+  ----------------------
+  ENVIRONMENT=development   (enables dev OTP 123456)
+  DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/ludo_legends
+  REDIS_URL=redis://localhost:6379/0
+  JWT_SECRET_KEY=<your-secret>
+  JWT_REFRESH_SECRET_KEY=<your-secret>
+
+  GCP VM SSH:
+  -----------
+  ssh -i "C:\Users\AR\.ssh\gcp_rsa_key" asr-automation@35.193.127.84
+
+  Restart backend on GCP:
+  ------------------------
+  ssh into VM, then:
+  cd LudoLegends/backend-api
+  sudo docker compose up -d --build
+
+
+================================================================
+  END OF INSTRUCTIONS MANUAL
+  Ludo Legends - Sprint 1.1 Build
+  Backend: FastAPI + PostgreSQL + Redis
+  Frontend: Flutter 3.44 (Mobile + PWA)
+  Admin: React + Vite + Tailwind
+================================================================
