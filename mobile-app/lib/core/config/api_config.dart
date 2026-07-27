@@ -2,12 +2,10 @@ import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   static String get baseUrl {
-    if (kIsWeb) {
-      const definedUrl = String.fromEnvironment('API_URL', defaultValue: '');
-      if (definedUrl.isNotEmpty) return definedUrl;
-      return '';
-    }
-    return 'http://10.0.2.2:8000';
+    const definedUrl = String.fromEnvironment('API_URL', defaultValue: '');
+    if (definedUrl.isNotEmpty) return definedUrl;
+    if (kIsWeb) return '';
+    return 'http://35.193.127.84:8000';
   }
 
   static const String apiPrefix = '/api';

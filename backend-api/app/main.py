@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 import os
@@ -47,6 +48,20 @@ app.include_router(auto_move_router)
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
+
+
+APK_PATH = Path("/tmp/ludolegends.apk")
+
+
+@app.get("/download/apk")
+async def download_apk():
+    if APK_PATH.exists():
+        return FileResponse(
+            path=str(APK_PATH),
+            media_type="application/vnd.android.package-archive",
+            filename="LudoLegends.apk",
+        )
+    return {"error": "APK not found"}
 
 
 WEB_DIR = Path("/app/web")
