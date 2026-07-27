@@ -15,7 +15,7 @@ class AuthService {
     await _api.dio.post('${ApiConfig.auth}/otp/request', data: {'phone': phone});
   }
 
-  Future<User> verifyOtp(String phone, String otp, {String? referralCode}) async {
+  Future<void> verifyOtp(String phone, String otp, {String? referralCode}) async {
     final response = await _api.dio.post('${ApiConfig.auth}/otp/verify', data: {
       'phone': phone,
       'otp': otp,
@@ -27,8 +27,6 @@ class AuthService {
     await _storage.write(key: StorageKeys.refreshToken, value: data['refresh_token']);
     await _storage.write(key: StorageKeys.userId, value: data['user_id']);
     await _storage.write(key: StorageKeys.userRole, value: data['role']);
-
-    return User.fromJson(data);
   }
 
   Future<User?> getCurrentUser() async {

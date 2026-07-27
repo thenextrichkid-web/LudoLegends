@@ -21,9 +21,10 @@ class _OtpScreenState extends State<OtpScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _authService.requestOtp(_phoneController.text);
+      final phone = '+91${_phoneController.text}';
+      await _authService.requestOtp(phone);
       if (mounted) {
-        context.go('/verify-otp', extra: _phoneController.text);
+        context.go('/verify-otp', extra: phone);
       }
     } catch (e) {
       if (mounted) {
