@@ -1,6 +1,6 @@
 ================================================================
   LUDO LEGENDS - INSTRUCTIONS MANUAL
-  Sprint 1.1 Build | Version 1.0.1
+  Sprint M0.2 Build | Version 1.1.0
   Date: July 27, 2026
 ================================================================
 
@@ -278,6 +278,11 @@ TABLE OF CONTENTS
   Solution: The APK is 174MB. Download over WiFi recommended.
            The GCP VM upload speed may be limited on the free tier.
 
+  Problem: "Ludo Academy" or "Practice Mode" not showing on Home
+  Solution: Make sure you're on the latest APK (v1.1.0+).
+           Download from: http://35.193.127.84:8000/download/apk
+           Re-install over the existing app (no uninstall needed).
+
 
 ================================================================
 9. LOCAL DEVELOPMENT SETUP
@@ -385,8 +390,59 @@ TABLE OF CONTENTS
 
 
 ================================================================
+  CHANGELOG
+================================================================
+
+  v1.1.0 (Sprint M0.2) - July 27, 2026
+  --------------------------------------
+  HOME SCREEN:
+  - Wallet card now shows "Wallet Balance" title + tagline
+  - Empty tournaments shows friendly message + "Browse Upcoming Matches" button
+  - Quick Action icons increased ~20% (28px -> 34px)
+  - Stats row expanded: Matches, Wins, Win Rate, Earnings, Rank
+  - Notification badge support in app bar (red dot + count)
+  - Welcome card shown on first login only (dismissable)
+
+  LUDO ACADEMY (NEW):
+  - New "Academy" quick action on Home screen
+  - Hub screen with: Practice Match, Learn Rules, Tips & Tricks,
+    Winning Strategies, Tournament Guide
+  - Each section has rich content for learning Ludo
+
+  PRACTICE MODE (NEW):
+  - New "Practice" quick action on Home screen
+  - Unlimited free matches, no wallet deduction
+  - No winnings, no leaderboard impact
+  - Practice badge displayed during gameplay
+  - Info cards explaining all practice mode rules
+
+  QUICK PLAY:
+  - "Quick Play" quick action with "SOON" badge placeholder
+  - Coming in future sprint
+
+  GENERAL:
+  - Improved spacing and layout throughout Home screen
+  - Responsive empty state cards
+
+  v1.0.1 - July 27, 2026
+  -----------------------
+  - Fixed OTP flow: auto-prepend +91 to phone number
+  - Fixed User.fromJson crash on login response
+  - New APK download endpoint at /download/apk
+  - Instructions manual created
+
+  v1.0.0 - July 27, 2026
+  -----------------------
+  - Initial deployment
+  - Backend on GCP VM (35.193.127.84:8000)
+  - Flutter PWA + Admin Dashboard served from same port
+  - OTP dev mode (123456)
+  - Seed data: admin + player accounts
+
+
+================================================================
   END OF INSTRUCTIONS MANUAL
-  Ludo Legends - Sprint 1.1 Build (v1.0.1)
+  Ludo Legends - Sprint M0.2 Build (v1.1.0)
   Backend: FastAPI + PostgreSQL + Redis
   Frontend: Flutter 3.44 (Mobile + PWA)
   Admin: React + Vite + Tailwind
