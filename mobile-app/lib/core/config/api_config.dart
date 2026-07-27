@@ -5,7 +5,7 @@ class ApiConfig {
     if (kIsWeb) {
       const definedUrl = String.fromEnvironment('API_URL', defaultValue: '');
       if (definedUrl.isNotEmpty) return definedUrl;
-      return 'http://35.193.127.84:8000';
+      return '';
     }
     return 'http://10.0.2.2:8000';
   }

@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from pathlib import Path
+import os
+
 from app.core.database import engine, Base
 from app.api import auth_router, tournaments_router, wallet_router, matches_router, referrals_router, users_router, admin_router, auto_move_router
 import logging
@@ -43,3 +47,8 @@ app.include_router(auto_move_router)
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
+
+
+WEB_DIR = Path("/app/web")
+if WEB_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")

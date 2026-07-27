@@ -1,0 +1,29 @@
+{
+  "buildCommand": "flutter build web --release",
+  "outputDirectory": "build/web",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "http://35.193.127.84:8000/api/:path*"
+    },
+    {
+      "source": "/docs",
+      "destination": "http://35.193.127.84:8000/docs"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "http://35.193.127.84:8000/openapi.json"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, PATCH, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Authorization, Content-Type" }
+      ]
+    }
+  ]
+}
