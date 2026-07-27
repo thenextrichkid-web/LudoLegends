@@ -1,0 +1,50 @@
+LUDO LEGENDS - UI REVIEW ACTIONS (Sprint M0.2)
+
+HOME
+- Keep dark/purple theme.
+- Wallet card: Title 'Wallet Balance'; subtitle 'Built on Trust • Fair Play • Real Rewards.'
+- Keep Deposit/Withdraw.
+- Replace empty tournaments with:
+  'No tournaments are live right now.'
+  'New tournaments are added throughout the day.'
+  Button: Browse Upcoming Matches.
+- Increase Quick Action icon size by ~20%.
+- Keep Matches/Wins/Win Rate and leave room for Total Earnings and Rank.
+- Add notification badge support.
+- Show Welcome card on first login only.
+
+PRACTICE MODE (HIGH PRIORITY)
+- Add Practice Mode button on Home.
+- Unlimited free practice matches.
+- No wallet deduction.
+- No winnings.
+- No leaderboard/referral impact.
+- Practice badge during gameplay.
+
+QUICK PLAY
+- Do not implement matchmaking yet.
+- Add 'Quick Play (Coming Soon)' placeholder.
+
+GENERAL
+- Improve spacing and empty states.
+- Responsive layout.
+- Founder approval required before paid features.
+
+
+One improvement I'd like to make
+
+I think we should evolve Practice Mode into something bigger.
+
+Instead of just "Practice," call it:
+
+🎓 Ludo Academy
+
+Inside it, players can access:
+
+🎮 Practice Match
+📖 Learn the Rules
+🎯 Tips & Tricks
+🧠 Winning Strategies
+🏆 Tournament Guide
+
+For a brand-new player, this makes Ludo Legends feel more professional and approachable. It also aligns nicely with your longer-term vision of building not just a gaming platform, but an ecosystem that helps people improve and stay engaged. That kind of onboarding experience can become a real differentiator

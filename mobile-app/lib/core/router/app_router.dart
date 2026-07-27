@@ -13,6 +13,10 @@ import 'package:ludo_legends/screens/profile/profile_screen.dart';
 import 'package:ludo_legends/screens/match/submit_match_screen.dart';
 import 'package:ludo_legends/screens/leaderboard/leaderboard_screen.dart';
 import 'package:ludo_legends/screens/referral/referral_screen.dart';
+import 'package:ludo_legends/screens/academy/ludo_academy_screen.dart';
+import 'package:ludo_legends/screens/academy/academy_content_screen.dart';
+import 'package:ludo_legends/screens/practice/practice_mode_screen.dart';
+import 'package:ludo_legends/core/theme/app_theme.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -34,6 +38,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/submit-match/:tournamentId', builder: (context, state) => SubmitMatchScreen(tournamentId: state.pathParameters['tournamentId']!)),
       GoRoute(path: '/leaderboard', builder: (context, state) => const LeaderboardScreen()),
       GoRoute(path: '/referrals', builder: (context, state) => const ReferralScreen()),
+      GoRoute(path: '/academy', builder: (context, state) => const LudoAcademyScreen()),
+      GoRoute(path: '/practice', builder: (context, state) => const PracticeModeScreen()),
+      GoRoute(
+        path: '/academy/rules',
+        builder: (context, state) => AcademyContentScreen.rulesData,
+      ),
+      GoRoute(
+        path: '/academy/tips',
+        builder: (context, state) => AcademyContentScreen.tipsData,
+      ),
+      GoRoute(
+        path: '/academy/strategies',
+        builder: (context, state) => AcademyContentScreen.strategiesData,
+      ),
+      GoRoute(
+        path: '/academy/tournament-guide',
+        builder: (context, state) => AcademyContentScreen.tournamentGuideData,
+      ),
     ],
   );
 });
