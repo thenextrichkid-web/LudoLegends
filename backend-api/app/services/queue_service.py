@@ -64,7 +64,10 @@ class QueueService:
             description=f"Queue entry freeze for ₹{pool_amount} pool",
         )
 
-        timeout = DEFAULT_QUEUE_TIMEOUT_SECONDS
+        from app.services.config_service import ConfigService
+        cfg = ConfigService(self.db)
+        timeout = await cfg.get_int("queue_timeout_seconds", DEFAULT_QUEUE_TIMEOUT_SECONDS)
+
         queue_entry = QueueEntry(
             id=str(uuid.uuid4()),
             user_id=user_id,
