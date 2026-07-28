@@ -12,6 +12,8 @@ class NotificationType(str, enum.Enum):
     REFERRAL = "referral"
     SYSTEM = "system"
     PROMOTIONAL = "promotional"
+    MATCH = "match"
+    WITHDRAWAL = "withdrawal"
 
 
 class Notification(Base):

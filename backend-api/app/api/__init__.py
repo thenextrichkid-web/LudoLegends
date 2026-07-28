@@ -7,3 +7,7 @@ from app.api.users import router as users_router
 from app.api.admin import router as admin_router
 from app.api.auto_move import router as auto_move_router
 from app.api.withdrawals import router as withdrawals_router
+from app.api.admin_config import router as admin_config_router
+from app.api.feature_flags import router as feature_flags_router
+from app.api.admin_audit import router as admin_audit_router
+from app.api.notifications import router as notifications_router

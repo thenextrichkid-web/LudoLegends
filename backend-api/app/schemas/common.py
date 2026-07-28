@@ -1,5 +1,23 @@
-from pydantic import BaseModel
+"""Standardized API response schemas — consistent envelope for all endpoints."""
+
+from pydantic import BaseModel, Field
 from datetime import datetime
+
+
+class SuccessResponse(BaseModel):
+    success: bool = True
+    code: str = "OK"
+    message: str = "Success"
+    data: dict | list | None = None
+    requestId: str | None = None
+
+
+class ErrorResponse(BaseModel):
+    success: bool = False
+    code: str
+    message: str
+    requestId: str | None = None
+    details: dict | None = None
 
 
 class PaginatedResponse(BaseModel):
@@ -25,7 +43,7 @@ class LeaderboardResponse(BaseModel):
 
 
 class LeaderboardPeriod(BaseModel):
-    period: str  # "weekly", "monthly", "all_time"
+    period: str
     start_date: datetime | None = None
     end_date: datetime | None = None
 

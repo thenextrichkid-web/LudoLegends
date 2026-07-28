@@ -3,35 +3,61 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from app.core.database import engine, Base
 from app.core.config import get_settings
+from app.core.logging import setup_logging, get_logger
+from app.middleware.request_id import RequestIDMiddleware
+from app.middleware.error_handler import register_error_handlers
 from app.api import (
     auth_router, tournaments_router, wallet_router, matches_router,
     referrals_router, users_router, admin_router, auto_move_router,
-    withdrawals_router,
+    withdrawals_router, admin_config_router, feature_flags_router,
+    admin_audit_router, notifications_router,
 )
-import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 settings = get_settings()
+setup_logging(settings.ENVIRONMENT)
+logger = get_logger("main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    from app.core.database import async_session
+    async with async_session() as db:
+        from app.services.feature_flag_service import FeatureFlagService
+        from app.services.config_service import ConfigService
+        await FeatureFlagService(db).seed_defaults()
+        await ConfigService(db).seed_defaults()
+        await db.commit()
+
+    logger.info("Ludo Legends API started — version=%s env=%s", settings.VERSION, settings.ENVIRONMENT)
     yield
+    logger.info("Ludo Legends API shutting down")
 
 
 app = FastAPI(
     title="Ludo Legends API",
-    description="Backend API for Ludo Legends Tournament Platform",
+    description=(
+        "Backend API for Ludo Legends Tournament Platform.\n\n"
+        "## Authentication\n"
+        "All protected endpoints require a Bearer token in the Authorization header.\n\n"
+        "## Error Format\n"
+        "All errors return:\n"
+        "```json\n{\"success\": false, \"code\": \"ERROR_CODE\", \"message\": \"...\", \"requestId\": \"...\"}\n```\n\n"
+        "## Feature Flags\n"
+        "Use `GET /api/admin/feature-flags/public` to check enabled features."
+    ),
     version=settings.VERSION,
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
@@ -42,6 +68,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(RequestIDMiddleware)
+
+register_error_handlers(app)
+
 app.include_router(auth_router)
 app.include_router(tournaments_router)
 app.include_router(wallet_router)
@@ -51,9 +81,13 @@ app.include_router(users_router)
 app.include_router(admin_router)
 app.include_router(auto_move_router)
 app.include_router(withdrawals_router)
+app.include_router(admin_config_router)
+app.include_router(feature_flags_router)
+app.include_router(admin_audit_router)
+app.include_router(notifications_router)
 
 
-@app.get("/health")
+@app.get("/health", tags=["system"])
 async def health_check():
     return {"status": "healthy", "version": settings.VERSION}
 
@@ -61,9 +95,8 @@ async def health_check():
 APK_PATH = Path("/app/apk/LudoLegends.apk")
 
 
-@app.get("/download/apk")
+@app.get("/download/apk", tags=["system"])
 async def download_apk():
-    """Download the latest APK build."""
     if APK_PATH.exists():
         return FileResponse(
             path=str(APK_PATH),

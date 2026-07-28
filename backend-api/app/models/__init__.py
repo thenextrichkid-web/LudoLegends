@@ -11,6 +11,8 @@ from app.models.withdrawal import WithdrawalRequest
 from app.models.deposit import DepositRequest
 from app.models.audit_log import AuditLog
 from app.models.settings import Setting
+from app.models.feature_flag import FeatureFlag
+from app.models.site_config import SiteConfig
 
 __all__ = [
     "User", "Wallet", "WalletTransaction",
@@ -18,5 +20,5 @@ __all__ = [
     "Match", "MatchResult",
     "Referral", "Reward", "Giveaway", "Leaderboard",
     "Notification", "WithdrawalRequest", "DepositRequest",
-    "AuditLog", "Setting",
+    "AuditLog", "Setting", "FeatureFlag", "SiteConfig",
 ]
