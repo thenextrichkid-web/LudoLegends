@@ -1,8 +1,11 @@
+"""Wallet and transaction Pydantic schemas."""
+
 from pydantic import BaseModel, Field
 from datetime import datetime
 
 
 class WalletResponse(BaseModel):
+    """Wallet balance response."""
     id: str
     balance: float
     frozen: float
@@ -15,6 +18,7 @@ class WalletResponse(BaseModel):
 
 
 class TransactionResponse(BaseModel):
+    """Wallet transaction response."""
     id: str
     type: str
     amount: float
@@ -29,16 +33,6 @@ class TransactionResponse(BaseModel):
 
 
 class DepositRequest(BaseModel):
-    amount: float = Field(..., gt=0)
-    payment_method: str
-
-
-class WithdrawalRequest(BaseModel):
-    amount: float = Field(..., gt=0)
-    payment_method: str
-    payment_details: str
-
-
-class WithdrawalAction(BaseModel):
-    action: str = Field(..., pattern=r"^(approve|reject)$")
-    rejection_reason: str | None = None
+    """Deposit funds request."""
+    amount: float = Field(..., gt=0, description="Amount to deposit")
+    payment_method: str = Field(..., description="Payment method (e.g., 'upi', 'card')")

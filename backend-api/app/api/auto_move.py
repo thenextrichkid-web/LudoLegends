@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+"""Auto-move (inactive player penalty) API endpoints."""
+
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -11,25 +14,39 @@ router = APIRouter(prefix="/api/auto-move", tags=["auto-move"])
 
 
 @router.post("/record/{match_id}")
-async def record_auto_move(match_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def record_auto_move(
+    match_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Record an auto-move for a player (penalty tracking)."""
     svc = AutoMoveService(db)
     try:
         return await svc.record_auto_move(match_id, user.id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/status/{match_id}")
-async def get_auto_move_status(match_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_auto_move_status(
+    match_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get auto-move status for a match."""
     svc = AutoMoveService(db)
     try:
         return await svc.get_match_auto_moves(match_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/config")
-async def get_auto_move_config(user: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
+async def get_auto_move_config(
+    user: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get auto-move penalty configuration (admin only)."""
     svc = AutoMoveService(db)
     return await svc.get_penalty_config()
 
@@ -41,7 +58,7 @@ async def update_auto_move_config(
     user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    import uuid
+    """Update auto-move penalty configuration (admin only)."""
     for key, value in [("AUTO_MOVE_LIMIT", str(limit)), ("AUTO_MOVE_PENALTY_AMOUNT", str(penalty_amount))]:
         result = await db.execute(select(Setting).where(Setting.key == key))
         setting = result.scalar_one_or_none()
