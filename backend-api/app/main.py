@@ -50,7 +50,7 @@ async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
 
-APK_PATH = Path("/tmp/ludolegends.apk")
+APK_PATH = Path("/app/apk/LudoLegends.apk")
 
 
 @app.get("/download/apk")
