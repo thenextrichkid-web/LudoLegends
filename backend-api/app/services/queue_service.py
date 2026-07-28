@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from app.models.queue_entry import QueueEntry, QueueStatus
 from app.models.match import Match, MatchStatus
+from app.models.wallet import TransactionType
 from app.services.wallet_service import WalletService
 from app.core.logging import get_logger
 from app.core.metrics import metrics
@@ -58,6 +59,7 @@ class QueueService:
         wallet_svc = WalletService(self.db)
         tx = await wallet_svc.deduct(
             user_id, pool_amount,
+            tx_type=TransactionType.ENTRY_FEE,
             reference_id=None,
             description=f"Queue entry freeze for ₹{pool_amount} pool",
         )
