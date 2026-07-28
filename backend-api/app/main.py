@@ -21,6 +21,7 @@ from app.api import (
     referrals_router, users_router, admin_router, auto_move_router,
     withdrawals_router, admin_config_router, feature_flags_router,
     admin_audit_router, notifications_router, metrics_router,
+    queue_router,
 )
 from app.api.health import router as health_router, set_version
 
@@ -96,6 +97,28 @@ app.include_router(feature_flags_router)
 app.include_router(admin_audit_router)
 app.include_router(notifications_router)
 app.include_router(metrics_router)
+app.include_router(queue_router)
+
+
+@app.on_event("startup")
+async def start_queue_expiry_task():
+    import asyncio
+
+    async def _expire_loop():
+        while True:
+            try:
+                from app.core.database import async_session
+                async with async_session() as db:
+                    from app.services.queue_service import QueueService
+                    count = await QueueService(db).expire_stale_entries()
+                    if count > 0:
+                        await db.commit()
+                        logger.info("Queue expiry: %d entries expired", count)
+            except Exception as e:
+                logger.error("Queue expiry task error: %s", e)
+            await asyncio.sleep(30)
+
+    asyncio.create_task(_expire_loop())
 
 
 @app.middleware("http")

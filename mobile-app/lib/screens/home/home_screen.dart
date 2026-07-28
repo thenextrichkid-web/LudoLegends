@@ -285,11 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Expanded(child: _quickAction(Icons.school, 'Ludo Academy', () => context.push('/academy'))),
             const SizedBox(width: 8),
-            Expanded(child: _quickAction(Icons.play_arrow, 'Quick Play', () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Coming soon! Join a tournament to play.'), backgroundColor: AppColors.primary),
-              );
-            })),
+            Expanded(child: _quickAction(Icons.play_arrow, 'Quick Play', () => context.push('/pools'))),
             const SizedBox(width: 8),
             Expanded(child: _quickAction(Icons.fitness_center, 'Practice', () => context.push('/practice'))),
           ],

@@ -19,6 +19,9 @@ import 'package:ludo_legends/screens/referral/referral_screen.dart';
 import 'package:ludo_legends/screens/academy/ludo_academy_screen.dart';
 import 'package:ludo_legends/screens/academy/academy_content_screen.dart';
 import 'package:ludo_legends/screens/practice/practice_mode_screen.dart';
+import 'package:ludo_legends/screens/pool/live_pools_screen.dart';
+import 'package:ludo_legends/screens/pool/queue_waiting_screen.dart';
+import 'package:ludo_legends/screens/pool/match_found_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -35,6 +38,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/wallet', builder: (context, state) => const WalletScreen()),
           GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
         ],
+      ),
+      GoRoute(path: '/pools', builder: (context, state) => const LivePoolsScreen()),
+      GoRoute(
+        path: '/queue-waiting',
+        builder: (context, state) => QueueWaitingScreen(queueData: state.extra as Map<String, dynamic>? ?? {}),
+      ),
+      GoRoute(
+        path: '/match-found',
+        builder: (context, state) => MatchFoundScreen(matchData: state.extra as Map<String, dynamic>? ?? {}),
       ),
       GoRoute(path: '/tournament/:id', builder: (context, state) => TournamentDetailScreen(tournamentId: state.pathParameters['id']!)),
       GoRoute(path: '/submit-match/:tournamentId', builder: (context, state) => SubmitMatchScreen(tournamentId: state.pathParameters['tournamentId']!)),

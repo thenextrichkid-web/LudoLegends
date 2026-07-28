@@ -18,6 +18,8 @@ class ApiConfig {
   static String get users => '$apiPrefix/users';
   static String get withdrawals => '$apiPrefix/withdrawals';
   static String get admin => '$apiPrefix/admin';
+  static String get queue => '$apiPrefix/queue';
+  static String get notifications => '$apiPrefix/notifications';
 }
 
 class StorageKeys {

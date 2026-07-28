@@ -13,6 +13,7 @@ from app.models.audit_log import AuditLog
 from app.models.settings import Setting
 from app.models.feature_flag import FeatureFlag
 from app.models.site_config import SiteConfig
+from app.models.queue_entry import QueueEntry
 
 __all__ = [
     "User", "Wallet", "WalletTransaction",
@@ -21,4 +22,5 @@ __all__ = [
     "Referral", "Reward", "Giveaway", "Leaderboard",
     "Notification", "WithdrawalRequest", "DepositRequest",
     "AuditLog", "Setting", "FeatureFlag", "SiteConfig",
+    "QueueEntry",
 ]
