@@ -9,7 +9,7 @@ from app.core.logging import get_logger
 logger = get_logger("notification_service")
 
 
-class EventNotificationType(NotificationType):
+class EventNotificationType:
     MATCH_FOUND = "match_found"
     MATCH_CANCELLED = "match_cancelled"
     WITHDRAWAL_APPROVED = "withdrawal_approved"
@@ -18,12 +18,6 @@ class EventNotificationType(NotificationType):
     TOURNAMENT_CANCELLED = "tournament_cancelled"
     PRIZE_CREDITED = "prize_credited"
     REFERRAL_BONUS = "referral_bonus"
-    TOURNAMENT = "tournament"
-    WALLET = "wallet"
-    GIVEAWAY = "giveaway"
-    REFERRAL = "referral"
-    SYSTEM = "system"
-    PROMOTIONAL = "promotional"
 
 
 EVENT_TITLES = {
