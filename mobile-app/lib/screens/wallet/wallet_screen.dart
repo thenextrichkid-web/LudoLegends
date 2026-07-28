@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ludo_legends/core/theme/app_theme.dart';
 import 'package:ludo_legends/services/wallet_service.dart';
 import 'package:ludo_legends/models/wallet.dart';
@@ -87,47 +88,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showWithdrawDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Withdraw', style: TextStyle(color: AppColors.textPrimary)),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'Amount (₹)', prefixText: '₹ '),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final amount = double.tryParse(controller.text);
-              if (amount == null || amount <= 0) return;
-              Navigator.pop(ctx);
-              try {
-                await _service.withdraw(amount, 'upi', '');
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Withdrawal requested!'), backgroundColor: AppColors.success),
-                );
-                _load();
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(e.toString().contains('Connection') ? 'No internet connection.' : 'Withdrawal failed.'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              }
-            },
-            child: const Text('Withdraw'),
-          ),
-        ],
-      ),
-    );
+    context.push('/withdrawals');
   }
 
   @override

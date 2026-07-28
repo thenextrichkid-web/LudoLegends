@@ -26,13 +26,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final user = await _authService.getCurrentUser();
       if (!mounted) return;
-      setState(() {
-        _user = user;
-        _isLoading = false;
-      });
+      setState(() { _user = user; _isLoading = false; });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _isLoading = false; });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -77,9 +74,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                _menuItem(Icons.sports_esports, 'My Matches', () => context.push('/matches')),
+                _menuItem(Icons.account_balance, 'Withdrawals', () => context.push('/withdrawals')),
                 _menuItem(Icons.history, 'Match History', () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Match history coming soon!'), backgroundColor: AppColors.primary),
+                    const SnackBar(content: Text('Full match history coming soon!'), backgroundColor: AppColors.primary),
                   );
                 }),
                 _menuItem(Icons.help_outline, 'Help & Support', () {

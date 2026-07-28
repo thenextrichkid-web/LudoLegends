@@ -16,6 +16,8 @@ class ApiConfig {
   static String get matches => '$apiPrefix/matches';
   static String get referrals => '$apiPrefix/referrals';
   static String get users => '$apiPrefix/users';
+  static String get withdrawals => '$apiPrefix/withdrawals';
+  static String get admin => '$apiPrefix/admin';
 }
 
 class StorageKeys {

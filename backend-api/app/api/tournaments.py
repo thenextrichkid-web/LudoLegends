@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.core.database import get_db
 from app.services.tournament_service import TournamentService
 from app.schemas.tournament import TournamentCreate, TournamentResponse, TournamentList
@@ -23,6 +24,19 @@ async def list_tournaments(status_filter: str | None = None, page: int = 1, per_
     svc = TournamentService(db)
     tournaments, total = await svc.list_tournaments(status=status_filter, page=page, per_page=per_page)
     return TournamentList(tournaments=tournaments, total=total, page=page, per_page=per_page)
+
+
+@router.get("/my/joined")
+async def my_joined_tournaments(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    from app.models.tournament import TournamentParticipant, Tournament
+    result = await db.execute(
+        select(Tournament)
+        .join(TournamentParticipant, TournamentParticipant.tournament_id == Tournament.id)
+        .where(TournamentParticipant.user_id == user.id)
+        .order_by(Tournament.starts_at.desc())
+    )
+    tournaments = list(result.scalars().all())
+    return [TournamentResponse.model_validate(t) for t in tournaments]
 
 
 @router.get("/{tournament_id}", response_model=TournamentResponse)

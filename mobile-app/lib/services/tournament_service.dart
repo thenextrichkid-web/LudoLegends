@@ -27,6 +27,11 @@ class TournamentService {
     await _api.dio.post('${ApiConfig.tournaments}/$tournamentId/join');
   }
 
+  Future<List<Tournament>> getMyJoined() async {
+    final response = await _api.dio.get('${ApiConfig.tournaments}/my/joined');
+    return (response.data as List).map((t) => Tournament.fromJson(t)).toList();
+  }
+
   Future<List<dynamic>> getParticipants(String tournamentId) async {
     final response = await _api.dio.get('${ApiConfig.tournaments}/$tournamentId/participants');
     return response.data;

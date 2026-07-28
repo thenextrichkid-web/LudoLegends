@@ -7,7 +7,7 @@ from pathlib import Path
 import os
 
 from app.core.database import engine, Base
-from app.api import auth_router, tournaments_router, wallet_router, matches_router, referrals_router, users_router, admin_router, auto_move_router
+from app.api import auth_router, tournaments_router, wallet_router, matches_router, referrals_router, users_router, admin_router, auto_move_router, withdrawals_router
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -43,6 +43,7 @@ app.include_router(referrals_router)
 app.include_router(users_router)
 app.include_router(admin_router)
 app.include_router(auto_move_router)
+app.include_router(withdrawals_router)
 
 
 @app.get("/health")

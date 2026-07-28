@@ -6,3 +6,4 @@ from app.api.referrals import router as referrals_router
 from app.api.users import router as users_router
 from app.api.admin import router as admin_router
 from app.api.auto_move import router as auto_move_router
+from app.api.withdrawals import router as withdrawals_router

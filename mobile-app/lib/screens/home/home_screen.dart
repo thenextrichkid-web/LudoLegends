@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _balance = 0;
   int _wins = 0;
   List<Tournament> _tournaments = [];
+  List<Tournament> _myTournaments = [];
   bool _isLoading = true;
   String? _error;
 
@@ -40,12 +41,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final user = await _authService.getCurrentUser();
       final wallet = await _walletService.getBalance();
       final tournaments = await _tournamentService.getTournaments(status: 'upcoming', perPage: 3);
+      final myTournaments = await _tournamentService.getMyJoined();
       if (!mounted) return;
       setState(() {
         _userName = user?.name ?? 'Player';
         _balance = wallet.balance;
         _wins = user?.totalWins.toInt() ?? 0;
         _tournaments = tournaments;
+        _myTournaments = myTournaments;
         _isLoading = false;
       });
     } catch (e) {
@@ -84,6 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _buildWalletCard(),
                       const SizedBox(height: 16),
+                      if (_myTournaments.isNotEmpty) ...[
+                        _buildMyTournaments(),
+                        const SizedBox(height: 16),
+                      ],
                       _buildTournamentSection(),
                       const SizedBox(height: 16),
                       _buildWelcomeCard(),
@@ -120,6 +127,32 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMyTournaments() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('My Tournaments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        const SizedBox(height: 8),
+        ..._myTournaments.map((t) => Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: Icon(
+              t.status == 'completed' ? Icons.check_circle : t.status == 'in_progress' ? Icons.play_circle : Icons.emoji_events,
+              color: t.status == 'completed' ? AppColors.success : t.status == 'in_progress' ? AppColors.secondary : AppColors.primary,
+            ),
+            title: Text(t.name, style: const TextStyle(color: AppColors.textPrimary)),
+            subtitle: Text(
+              'Entry ₹${t.entryFee.toInt()} · ${t.status.toUpperCase()}',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted),
+            onTap: () => context.push('/tournament/${t.id}'),
+          ),
+        )),
+      ],
     );
   }
 
