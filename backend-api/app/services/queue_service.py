@@ -109,7 +109,7 @@ class QueueService:
 
         match = Match(
             id=str(uuid.uuid4()),
-            tournament_id="queue_match",
+            tournament_id=None,
             user_id=entry.user_id,
             status=MatchStatus.PENDING,
         )
