@@ -1,6 +1,7 @@
 """Generic notification service — reusable across all features."""
 
 import uuid
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.notification import Notification, NotificationType
@@ -89,7 +90,6 @@ class NotificationService:
         return notifications, total
 
     async def mark_read(self, user_id: str, notification_id: str) -> Notification:
-        from datetime import datetime, timezone
         result = await self.db.execute(
             select(Notification)
             .where(Notification.id == notification_id, Notification.user_id == user_id)
@@ -103,7 +103,6 @@ class NotificationService:
         return notification
 
     async def mark_all_read(self, user_id: str) -> int:
-        from datetime import datetime, timezone
         result = await self.db.execute(
             select(Notification)
             .where(Notification.user_id == user_id, Notification.is_read == False)

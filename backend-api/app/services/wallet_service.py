@@ -1,10 +1,12 @@
 """Wallet service with row-level locking for safe balance operations."""
 
 import uuid
-from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.wallet import Wallet, WalletTransaction, TransactionType
+from app.core.logging import get_logger
+
+logger = get_logger("wallet_service")
 
 
 class WalletService:
@@ -150,15 +152,20 @@ class WalletService:
         return tx
 
     async def unfreeze(self, user_id: str, amount: float) -> None:
-        """Unfreeze funds (after withdrawal approval/rejection). Acquires row lock."""
+        """Unfreeze funds (after withdrawal approval). Acquires row lock."""
         wallet = await self.get_or_create_wallet(user_id, for_update=True)
+        if amount > wallet.frozen:
+            logger.warning("Unfreeze amount %s exceeds frozen %s for user %s", amount, wallet.frozen, user_id)
         wallet.frozen = max(0, wallet.frozen - amount)
 
     async def refund(self, user_id: str, amount: float) -> None:
         """Return frozen funds to balance (after withdrawal rejection). Acquires row lock."""
         wallet = await self.get_or_create_wallet(user_id, for_update=True)
-        wallet.frozen = max(0, wallet.frozen - amount)
-        wallet.balance += amount
+        actual_refund = min(amount, wallet.frozen)
+        if actual_refund < amount:
+            logger.warning("Refund amount %s exceeds frozen %s for user %s, refunding %s", amount, wallet.frozen, user_id, actual_refund)
+        wallet.frozen = max(0, wallet.frozen - actual_refund)
+        wallet.balance += actual_refund
 
     async def get_transactions(
         self, user_id: str, page: int = 1, per_page: int = 20

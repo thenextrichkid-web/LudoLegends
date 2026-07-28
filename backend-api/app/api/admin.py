@@ -118,17 +118,24 @@ async def list_withdrawals(
     db: AsyncSession = Depends(get_db),
 ):
     """List withdrawal requests for admin review."""
+    try:
+        status_enum = WithdrawalStatus(status_filter) if status_filter != "all" else None
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status filter: {status_filter}. Use: pending, approved, rejected, processed, all",
+        )
     offset = (page - 1) * per_page
     query = select(WithdrawalRequest)
-    if status_filter != "all":
-        query = query.where(WithdrawalRequest.status == WithdrawalStatus(status_filter))
+    if status_enum is not None:
+        query = query.where(WithdrawalRequest.status == status_enum)
     query = query.order_by(WithdrawalRequest.created_at.desc()).offset(offset).limit(per_page)
     result = await db.execute(query)
     withdrawals = result.scalars().all()
 
     count_query = select(func.count(WithdrawalRequest.id))
-    if status_filter != "all":
-        count_query = count_query.where(WithdrawalRequest.status == WithdrawalStatus(status_filter))
+    if status_enum is not None:
+        count_query = count_query.where(WithdrawalRequest.status == status_enum)
     total = (await db.execute(count_query)).scalar() or 0
 
     return {

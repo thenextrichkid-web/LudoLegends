@@ -1,10 +1,9 @@
-"""Rate limiting middleware — Redis-backed sliding window rate limiter."""
+"""Rate limiting middleware — in-memory sliding window with proxy support."""
 
 import time
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-from app.core.config import get_settings
 from app.core.logging import get_logger, request_id_var
 
 logger = get_logger("rate_limiter")
@@ -28,8 +27,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.limits = {**DEFAULT_LIMITS, **(custom_limits or {})}
         self._memory_store: dict[str, list[float]] = {}
 
+    def _get_client_ip(self, request: Request) -> str:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip.strip()
+        return request.client.host if request.client else "unknown"
+
     def _get_key(self, path: str, client_ip: str) -> str:
-        for pattern, limit in self.limits.items():
+        for pattern in self.limits:
             if path.startswith(pattern):
                 return f"rl:{pattern}:{client_ip}"
         return f"rl:global:{client_ip}"
@@ -60,7 +68,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path in ("/health", "/ready", "/live", "/docs", "/redoc", "/openapi.json"):
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = self._get_client_ip(request)
         key = self._get_key(path, client_ip)
         limit_config = self._get_limit(path)
         window = limit_config["window"]
