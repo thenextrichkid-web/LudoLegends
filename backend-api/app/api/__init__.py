@@ -11,3 +11,4 @@ from app.api.admin_config import router as admin_config_router
 from app.api.feature_flags import router as feature_flags_router
 from app.api.admin_audit import router as admin_audit_router
 from app.api.notifications import router as notifications_router
+from app.api.metrics_api import router as metrics_router

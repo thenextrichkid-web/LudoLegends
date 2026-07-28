@@ -1,9 +1,10 @@
-"""Centralized exception handler — standardized API error responses."""
+"""Centralized exception handler — standardized API error responses with crash reporting."""
 
-import traceback
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from app.core.logging import request_id_var, get_logger
+from app.core.crash_reporter import CrashContext
+from app.core.metrics import metrics
 
 logger = get_logger("error_handler")
 
@@ -74,6 +75,8 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(APIError)
     async def api_error_handler(request: Request, exc: APIError):
         req_id = request_id_var.get("")
+        metrics.increment("api_errors")
+        metrics.increment(f"api_error:{exc.code}")
         logger.warning("API error: code=%s message=%s path=%s", exc.code, exc.message, request.url.path)
         return JSONResponse(
             status_code=exc.status_code,
@@ -83,6 +86,8 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(ValueError)
     async def value_error_handler(request: Request, exc: ValueError):
         req_id = request_id_var.get("")
+        metrics.increment("api_errors")
+        metrics.increment("api_error:VALIDATION_ERROR")
         return JSONResponse(
             status_code=400,
             content=_error_response("VALIDATION_ERROR", str(exc), 400, req_id),
@@ -91,7 +96,11 @@ def register_error_handlers(app: FastAPI):
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
         req_id = request_id_var.get("")
-        logger.error("Unhandled exception: %s %s — %s", request.method, request.url.path, exc, exc_info=True)
+        metrics.increment("unhandled_exceptions")
+
+        crash = CrashContext(request)
+        crash.report_exception(exc)
+
         return JSONResponse(
             status_code=500,
             content=_error_response("INTERNAL_ERROR", "An unexpected error occurred.", 500, req_id),
