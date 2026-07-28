@@ -99,6 +99,9 @@ app.include_router(notifications_router)
 app.include_router(metrics_router)
 app.include_router(queue_router)
 
+# Keep reference to prevent GC
+_queue_expiry_task = None
+
 
 @app.on_event("startup")
 async def start_queue_expiry_task():
@@ -118,7 +121,9 @@ async def start_queue_expiry_task():
                 logger.error("Queue expiry task error: %s", e)
             await asyncio.sleep(30)
 
-    asyncio.create_task(_expire_loop())
+    global _queue_expiry_task
+    _queue_expiry_task = asyncio.create_task(_expire_loop())
+    logger.info("Queue expiry background task started")
 
 
 @app.middleware("http")
