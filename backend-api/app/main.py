@@ -43,8 +43,30 @@ async def lifespan(app: FastAPI):
         await ConfigService(db).seed_defaults()
         await db.commit()
 
+    import asyncio
+    queue_expiry_task = None
+
+    async def _expire_loop():
+        while True:
+            try:
+                from app.core.database import async_session
+                async with async_session() as db:
+                    from app.services.queue_service import QueueService
+                    count = await QueueService(db).expire_stale_entries()
+                    if count > 0:
+                        await db.commit()
+                        logger.info("Queue expiry: %d entries expired", count)
+            except Exception as e:
+                logger.error("Queue expiry task error: %s", e)
+            await asyncio.sleep(30)
+
+    queue_expiry_task = asyncio.create_task(_expire_loop())
+    logger.info("Queue expiry background task started")
+
     logger.info("Ludo Legends API started — version=%s env=%s", settings.VERSION, settings.ENVIRONMENT)
     yield
+    if queue_expiry_task:
+        queue_expiry_task.cancel()
     logger.info("Ludo Legends API shutting down")
 
 
@@ -98,32 +120,6 @@ app.include_router(admin_audit_router)
 app.include_router(notifications_router)
 app.include_router(metrics_router)
 app.include_router(queue_router)
-
-# Keep reference to prevent GC
-_queue_expiry_task = None
-
-
-@app.on_event("startup")
-async def start_queue_expiry_task():
-    import asyncio
-
-    async def _expire_loop():
-        while True:
-            try:
-                from app.core.database import async_session
-                async with async_session() as db:
-                    from app.services.queue_service import QueueService
-                    count = await QueueService(db).expire_stale_entries()
-                    if count > 0:
-                        await db.commit()
-                        logger.info("Queue expiry: %d entries expired", count)
-            except Exception as e:
-                logger.error("Queue expiry task error: %s", e)
-            await asyncio.sleep(30)
-
-    global _queue_expiry_task
-    _queue_expiry_task = asyncio.create_task(_expire_loop())
-    logger.info("Queue expiry background task started")
 
 
 @app.middleware("http")
