@@ -9,7 +9,7 @@ from app.core.logging import get_logger
 logger = get_logger("config_service")
 
 DEFAULT_CONFIGS = {
-    "entry_fees": {"value": "[10,20,50,100,200,500,1000]", "type": "json", "category": "tournaments", "description": "Available entry fee amounts"},
+    "entry_fees": {"value": "[100,200,300,500,1000,2000,3000,5000,10000]", "type": "json", "category": "tournaments", "description": "Available pool amounts"},
     "queue_timeout_seconds": {"value": "120", "type": "int", "category": "matchmaking", "description": "Seconds before queue times out"},
     "min_withdrawal": {"value": "100", "type": "float", "category": "wallet", "description": "Minimum withdrawal amount"},
     "max_withdrawal": {"value": "50000", "type": "float", "category": "wallet", "description": "Maximum withdrawal amount"},
