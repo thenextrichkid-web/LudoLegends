@@ -19,7 +19,7 @@ class Match(Base):
     __tablename__ = "matches"
 
     id = Column(String(36), primary_key=True)
-    tournament_id = Column(String(36), ForeignKey("tournaments.id"), nullable=False)
+    tournament_id = Column(String(36), ForeignKey("tournaments.id"), nullable=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     status = Column(SAEnum(MatchStatus, values_callable=lambda x: [e.value for e in x]), default=MatchStatus.PENDING, nullable=False)
     screenshot_url = Column(Text, nullable=True)

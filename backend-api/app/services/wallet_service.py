@@ -106,6 +106,7 @@ class WalletService:
 
         balance_before = wallet.balance
         wallet.balance -= amount
+        wallet.frozen += amount
 
         tx = WalletTransaction(
             id=str(uuid.uuid4()),
