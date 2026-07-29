@@ -1,17 +1,34 @@
 """Queue entry model — tracks players waiting for matchmaking."""
 
+import enum
 from sqlalchemy import Column, String, Float, DateTime, Integer, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-import enum
 
 
 class QueueStatus(str, enum.Enum):
     WAITING = "waiting"
     MATCHED = "matched"
-    EXPIRED = "expired"
+    ROOM_ASSIGNED = "room_assigned"
+    IN_PROGRESS = "in_progress"
+    RESULT_PENDING = "result_pending"
+    VERIFICATION = "verification"
+    COMPLETED = "completed"
     CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    REFUNDED = "refunded"
+
+    @classmethod
+    def active_statuses(cls) -> set:
+        return {
+            cls.WAITING,
+            cls.MATCHED,
+            cls.ROOM_ASSIGNED,
+            cls.IN_PROGRESS,
+            cls.RESULT_PENDING,
+            cls.VERIFICATION,
+        }
 
 
 class QueueEntry(Base):

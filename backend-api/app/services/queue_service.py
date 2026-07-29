@@ -181,7 +181,7 @@ class QueueService:
         result = await self.db.execute(
             select(QueueEntry).where(
                 QueueEntry.user_id == user_id,
-                QueueEntry.status == QueueStatus.WAITING,
+                QueueEntry.status.in_(list(QueueStatus.active_statuses())),
             )
         )
         return result.scalar_one_or_none()
